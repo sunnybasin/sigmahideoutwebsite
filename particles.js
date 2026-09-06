@@ -5,7 +5,7 @@ let width, height, particles;
 const PARTICLE_COUNT_DESKTOP = 90;
 const PARTICLE_COUNT_MOBILE = 45;
 const LINK_DISTANCE = 130;
-const COLOR = '77, 17, 17'; // RGB, no alpha — change this for a different hue
+const COLOR = '196, 0, 0'; // RGB, no alpha — change this for a different hue
 
 function resize() {
   width = canvas.width = window.innerWidth;
