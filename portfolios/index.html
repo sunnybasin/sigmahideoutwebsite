@@ -77,14 +77,10 @@
       min-height: calc(100vh - 70px);
       display: flex;
       flex-direction: column;
-      align-items: center;
-      justify-content: center;
-      text-align: center;
+      align-items: flex-start;
+      justify-content: flex-start;
       padding: 4vh 8vw 8vh;
-    }
-    main img {
-      max-width: 220px;
-      margin-bottom: 1.5rem;
+      max-width: 640px;
     }
     .badge {
       font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
@@ -98,7 +94,7 @@
       background: rgba(255, 19, 19, 0.8);
     }
     h1 {
-      font-size: clamp(2.2rem, 7vw, 3.6rem);
+      font-size: clamp(2.6rem, 8vw, 4.6rem);
       line-height: 1.02;
       margin: 0 0 1.1rem 0;
       font-weight: 400;
@@ -116,6 +112,57 @@
     .fire {
       color: var(--ember-dim);
     }
+
+    /* Portfolio list */
+    .portfolio-list {
+      list-style: none;
+      margin: 1.8rem 0 0;
+      padding: 0;
+      width: 100%;
+    }
+    .portfolio-list li {
+      border-bottom: 1px solid rgba(180, 56, 56, 0.3);
+    }
+    .portfolio-list a {
+      display: block;
+      padding: 1.1rem 0.4rem;
+      font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
+      font-size: 1.2rem;
+      color: var(--text);
+      text-decoration: none;
+      transition: color 0.15s ease, padding-left 0.15s ease;
+    }
+    .portfolio-list a:hover {
+      color: var(--ember-dim);
+      padding-left: 0.8rem;
+    }
+
+    /* Hover preview box */
+    #preview-box {
+      position: fixed;
+      z-index: 10;
+      pointer-events: none;
+      width: 220px;
+      border: 2px solid var(--ember-dim);
+      border-radius: 6px;
+      overflow: hidden;
+      background: var(--bg);
+      box-shadow: 0 8px 30px rgba(0, 0, 0, 0.6);
+      opacity: 0;
+      transform: translateY(6px);
+      transition: opacity 0.12s ease, transform 0.12s ease;
+    }
+    #preview-box.visible {
+      opacity: 1;
+      transform: translateY(0);
+    }
+    #preview-box img {
+      display: block;
+      width: 100%;
+      height: 140px;
+      object-fit: cover;
+    }
+
     @media (max-width: 700px) {
       nav {
         flex-direction: column;
@@ -124,6 +171,10 @@
       }
       nav ul {
         gap: 1.2rem;
+      }
+      /* previews don't work well on touch devices, hide on small screens */
+      #preview-box {
+        display: none;
       }
     }
   </style>
@@ -140,11 +191,60 @@
   </ul>
 </nav>
 <main>
-  <img src="/sunny2.png" alt="sunny">
-  <h1>whoops!</h1>
-  <p class="tagline">this page isn't done yet. you can help me get this done
-  quicker by dming me on how to make a portfolio though!</p>
+  <span class="badge">portfolios</span>
+  <h1 style="font-size: clamp(2.2rem, 6vw, 3.2rem);">portfolios</h1>
+  <p class="tagline">hover a name to preview, click to open.</p>
+
+  <!--
+    EDIT YOUR PORTFOLIO LIST HERE.
+    Each <li> is one entry:
+      - href        = where the link goes
+      - data-preview = path to the preview image for that entry
+      - text between <a>...</a> = the name shown in the list
+    Add or remove <li> lines to add/remove portfolios.
+  -->
+  <ul class="portfolio-list">
+    <li><a href="https://ragdollportfoliosh.carrd.co/" data-preview="/previews/portfolio1.png">Ragdulls</a></li>
+    <li><a href="https://cinnamon023portfoliosh.carrd.co/" data-preview="/previews/portfolio2.png">Cin</a></li>
+    <li><a href="https://jeanportfolio123.carrd.co/" data-preview="/previews/portfolio3.png">Jean</a></li>
+  </ul>
 </main>
+
+<div id="preview-box">
+  <img id="preview-img" src="" alt="Preview">
+</div>
+
 <script src="/particles.js?v=2"></script>
+<script>
+  const previewBox = document.getElementById('preview-box');
+  const previewImg = document.getElementById('preview-img');
+  const links = document.querySelectorAll('.portfolio-list a[data-preview]');
+
+  links.forEach(link => {
+    link.addEventListener('mouseenter', () => {
+      previewImg.src = link.getAttribute('data-preview');
+      previewBox.classList.add('visible');
+    });
+
+    link.addEventListener('mousemove', (e) => {
+      const offset = 18;
+      let x = e.clientX + offset;
+      let y = e.clientY + offset;
+
+      // keep the box on screen
+      const boxWidth = previewBox.offsetWidth;
+      const boxHeight = previewBox.offsetHeight;
+      if (x + boxWidth > window.innerWidth) x = e.clientX - boxWidth - offset;
+      if (y + boxHeight > window.innerHeight) y = e.clientY - boxHeight - offset;
+
+      previewBox.style.left = x + 'px';
+      previewBox.style.top = y + 'px';
+    });
+
+    link.addEventListener('mouseleave', () => {
+      previewBox.classList.remove('visible');
+    });
+  });
+</script>
 </body>
 </html>
