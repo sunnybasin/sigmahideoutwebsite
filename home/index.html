@@ -3,8 +3,8 @@
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <title>Sigma Hideout Official Website</title>
-  <link rel="icon" href="favicon.ico" type="image/x-icon">
+  <title>Sigma Hideout</title>
+  <link rel="icon" href="/favicon.ico" type="image/x-icon">
   <style>
     :root {
       --bg: #0f0c0c;
@@ -48,7 +48,6 @@
       align-items: center;
       gap: 0.6rem;
     }
-
     nav .brand img {
       width: 24px;
       height: 24px;
@@ -75,10 +74,12 @@
     main {
       position: relative;
       z-index: 1;
+      min-height: calc(100vh - 70px);
       display: flex;
       flex-direction: column;
       align-items: flex-start;
       justify-content: center;
+      padding: 4vh 8vw 8vh;
       max-width: 640px;
     }
     .badge {
@@ -127,28 +128,24 @@
 <canvas id="particles"></canvas>
 
 <nav>
-  <span class="brand"><img src="favicon.ico" alt="">sigma <span class="fire">hideout</span></span>
+  <span class="brand"><img src="/favicon.ico" alt="">sigma <span class="fire">hideout</span></span>
   <ul>
-    <li><a href="index.html">home</a></li>
-    <li><a href="about.html">about</a></li>
-    <li><a href="gallery.html">portfolios</a></li>
-    <li><a href="contact.html">extra</a></li>
+    <li><a href="/">home</a></li>
+    <li><a href="/about.html">about</a></li>
+    <li><a href="/gallery.html">gallery</a></li>
+    <li><a href="/contact.html">contact</a></li>
   </ul>
 </nav>
 
-<div style="display: flex; align-items: center; justify-content: space-between; min-height: calc(100vh - 70px); padding: 4vh 8vw 8vh;">
-  <main>
-    <span class="badge">work in progress</span>
-    <h1>whaddup<span class="fire"> </span></h1>
-    <p class="tagline">
-      building the site from scratch so it might take
-      a min
-    </p>
-  </main>
+<main>
+  <span class="badge">work in progress</span>
+  <h1>whaddup<span class="fire"> </span></h1>
+  <p class="tagline">
+    Decided to build the site from scratch instead of using a template,
+    so it's rough around the edges for now. More coming soon.
+  </p>
+</main>
 
-  <img src="og4dkt0a5dfg1.jpeg" alt="sad furry" style="max-width: 300px; position: relative; z-index: 1;">
-</div>
-
-<script src="particles.js?v=2"></script>
+<script src="/particles.js?v=2"></script>
 </body>
 </html>
