@@ -71,15 +71,20 @@
     nav a:hover {
       color: var(--ember-dim);
     }
-    main {
+    .content-row {
       position: relative;
       z-index: 1;
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
       min-height: calc(100vh - 70px);
+      padding: 4vh 8vw 8vh;
+    }
+    main {
       display: flex;
       flex-direction: column;
       align-items: flex-start;
       justify-content: center;
-      padding: 4vh 8vw 8vh;
       max-width: 640px;
     }
     .badge {
@@ -108,9 +113,15 @@
       color: var(--text-dim);
       max-width: 46ch;
       margin: 0;
+      white-space: pre-line;
     }
     .fire {
       color: var(--ember-dim);
+    }
+    .side-image {
+      max-width: 300px;
+      position: relative;
+      z-index: 1;
     }
     @media (max-width: 700px) {
       nav {
@@ -120,6 +131,13 @@
       }
       nav ul {
         gap: 1.2rem;
+      }
+      .content-row {
+        flex-direction: column;
+        gap: 2rem;
+      }
+      .side-image {
+        max-width: 200px;
       }
     }
   </style>
@@ -135,16 +153,20 @@
     <li><a href="/contact.html">contact</a></li>
   </ul>
 </nav>
-<main>
-  <span class="badge">work in progress</span>
-  <h1>whaddup<span class="fire"> </span></h1>
-  <p class="tagline">
-i hada make the website from scratch so its not gonna be finished
+
+<div class="content-row">
+  <main>
+    <span class="badge">work in progress</span>
+    <h1>whaddup<span class="fire"> </span></h1>
+    <p class="tagline">i hada make the website from scratch so its not gonna be finished
 for a while
-    ask me if you want a portfolio done
-  -sunny
-  </p>
-</main>
+ask me if you want a portfolio done
+-sunny</p>
+  </main>
+
+  <img class="side-image" src="/og4dkt0a5dfg1.jpeg" alt="Sigma Hideout">
+</div>
+
 <script src="/particles.js?v=2"></script>
 </body>
 </html>
