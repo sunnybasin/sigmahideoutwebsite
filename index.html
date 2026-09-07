@@ -15,9 +15,7 @@
       --text: #ecd9d9;
       --text-dim: #918787;
     }
-
     * { box-sizing: border-box; }
-
     html, body {
       margin: 0;
       padding: 0;
@@ -27,26 +25,54 @@
       font-family: 'Georgia', 'Iowan Old Style', serif;
       overflow-x: hidden;
     }
-
     canvas#particles {
       position: fixed;
       inset: 0;
       z-index: 0;
       display: block;
     }
-
+    nav {
+      position: relative;
+      z-index: 2;
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      padding: 1.4rem 8vw;
+      font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
+    }
+    nav .brand {
+      font-family: 'Georgia', 'Iowan Old Style', serif;
+      font-size: 1.15rem;
+      color: var(--text);
+    }
+    nav .brand .fire {
+      color: var(--ember-dim);
+    }
+    nav ul {
+      list-style: none;
+      display: flex;
+      gap: 2rem;
+      margin: 0;
+      padding: 0;
+    }
+    nav a {
+      color: var(--text-dim);
+      text-decoration: none;
+      font-size: 0.95rem;
+      transition: color 0.15s ease;
+    }
+    nav a:hover {
+      color: var(--ember-dim);
+    }
     main {
       position: relative;
       z-index: 1;
-      min-height: 100vh;
       display: flex;
       flex-direction: column;
       align-items: flex-start;
       justify-content: center;
-      padding: 8vh 8vw;
       max-width: 640px;
     }
-
     .badge {
       font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
       font-size: 0.72rem;
@@ -58,7 +84,6 @@
       margin-bottom: 1.6rem;
       background: rgba(255, 19, 19, 0.8);
     }
-
     h1 {
       font-size: clamp(2.6rem, 8vw, 4.6rem);
       line-height: 1.02;
@@ -67,7 +92,6 @@
       color: var(--text);
       text-shadow: 0 0 40px rgba(255, 19, 19, 0.8);
     }
-
     p.tagline {
       font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
       font-size: 1.05rem;
@@ -76,47 +100,61 @@
       max-width: 46ch;
       margin: 0;
     }
-
     .fire {
-      color: var(--ember);
+      color: var(--ember-dim);
+    }
+    @media (max-width: 700px) {
+      nav {
+        flex-direction: column;
+        gap: 0.8rem;
+        padding: 1.2rem 6vw;
+      }
+      nav ul {
+        gap: 1.2rem;
+      }
     }
   </style>
 </head>
 <body>
 <canvas id="particles"></canvas>
 
-<div style="display: flex; align-items: center; justify-content: space-between; min-height: 100vh; padding: 8vh 8vw;">
-  <main style="max-width: 640px;">
+<nav>
+  <span class="brand">sigma <span class="fire">hideout</span></span>
+  <ul>
+    <li><a href="index.html">home</a></li>
+    <li><a href="about.html">about</a></li>
+    <li><a href="gallery.html">gallery</a></li>
+    <li><a href="contact.html">contact</a></li>
+  </ul>
+</nav>
+
+<div style="display: flex; align-items: center; justify-content: space-between; min-height: calc(100vh - 70px); padding: 4vh 8vw 8vh;">
+  <main>
     <span class="badge">work in progress</span>
-    <h1>whaddup<span class="fire"> </h1> </span>
+    <h1>whaddup<span class="fire"> </span></h1>
     <p class="tagline">
       Decided to build the site from scratch instead of using a template,
       so it's rough around the edges for now. More coming soon.
     </p>
   </main>
 
-  <img src="logo.png" alt="Sigma Hideout logo" style="max-width: 300px; position: relative; z-index: 1;">
-  
-  <img id="clickable-logo" src="logo.png" alt="Sigma Hideout logo" style="max-width: 300px; cursor: pointer;">
+  <img id="clickable-logo" src="og4dkt0a5dfg1.jpeg" alt="Sigma Hideout logo" style="max-width: 300px; cursor: pointer; position: relative; z-index: 1;">
 </div>
-   <script src="particles.js?v=2"></script>
 
-</div>
-  
- <script>
+<script src="particles.js?v=2"></script>
+
+<script>
   const sounds = [
     'sounds/noise1.mp3',
     'sounds/noise2.mp3',
     'sounds/noise3.mp3'
   ];
-
   const logo = document.getElementById('clickable-logo');
-
   logo.addEventListener('click', () => {
     const randomSound = sounds[Math.floor(Math.random() * sounds.length)];
     const audio = new Audio(randomSound);
     audio.play();
   });
-</script> 
+</script>
 </body>
 </html>
