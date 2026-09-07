@@ -140,10 +140,15 @@
   </ul>
 </nav>
 <main>
-  <img src="/confused.png" alt="Confused cat">
+  <img id="random-sunny" src="/sunny.png" alt="Sunny">
   <h1>whoops!</h1>
   <p class="tagline">this page isn't done yet. come back later.</p>
 </main>
 <script src="/particles.js?v=2"></script>
+<script>
+  const sunnyImages = ['/sunny.png', '/sunny2.png', '/sunny3.png'];
+  const randomImage = sunnyImages[Math.floor(Math.random() * sunnyImages.length)];
+  document.getElementById('random-sunny').src = randomImage;
+</script>
 </body>
 </html>
