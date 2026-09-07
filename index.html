@@ -96,7 +96,27 @@
   </main>
 
   <img src="logo.png" alt="Sigma Hideout logo" style="max-width: 300px; position: relative; z-index: 1;">
+  
+  <img id="clickable-logo" src="logo.png" alt="Sigma Hideout logo" style="max-width: 300px; cursor: pointer;">
 </div>
    <script src="particles.js?v=2"></script>
+
+</div>
+  
+ <script>
+  const sounds = [
+    'sounds/noise1.mp3',
+    'sounds/noise2.mp3',
+    'sounds/noise3.mp3'
+  ];
+
+  const logo = document.getElementById('clickable-logo');
+
+  logo.addEventListener('click', () => {
+    const randomSound = sounds[Math.floor(Math.random() * sounds.length)];
+    const audio = new Audio(randomSound);
+    audio.play();
+  });
+</script> 
 </body>
 </html>
