@@ -112,6 +112,29 @@
     .fire {
       color: var(--ember-dim);
     }
+
+    /* Tic-tac style scrollbar */
+    ::-webkit-scrollbar {
+      width: 10px;
+    }
+    ::-webkit-scrollbar-track {
+      background: transparent;
+    }
+    ::-webkit-scrollbar-thumb {
+      background: var(--ember-dim);
+      border-radius: 999px;
+      border: 2px solid var(--bg);
+      background-clip: padding-box;
+      min-height: 40px;
+    }
+    ::-webkit-scrollbar-thumb:hover {
+      background: var(--text-dim);
+      background-clip: padding-box;
+    }
+    html {
+      scrollbar-width: thin;
+      scrollbar-color: var(--ember-dim) transparent;
+    }
     .link-buttons {
       display: flex;
       flex-direction: column;
