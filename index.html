@@ -44,6 +44,14 @@
       font-family: 'Georgia', 'Iowan Old Style', serif;
       font-size: 1.15rem;
       color: var(--text);
+      display: flex;
+      align-items: center;
+      gap: 0.6rem;
+    }
+
+    nav .brand img {
+      width: 24px;
+      height: 24px;
     }
     nav .brand .fire {
       color: var(--ember-dim);
@@ -119,7 +127,7 @@
 <canvas id="particles"></canvas>
 
 <nav>
-  <span class="brand">sigma <span class="fire">hideout</span></span>
+  <span class="brand"><img src="favicon.ico" alt="">sigma <span class="fire">hideout</span></span>
   <ul>
     <li><a href="index.html">home</a></li>
     <li><a href="about.html">about</a></li>
