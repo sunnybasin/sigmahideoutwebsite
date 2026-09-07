@@ -2,10 +2,56 @@
 <html lang="en">
 <head>
   <meta charset="UTF-8">
-  <meta http-equiv="refresh" content="0; url=/home">
+  <meta http-equiv="refresh" content="1.5; url=/home">
   <title>Sigma Hideout</title>
+  <style>
+    :root {
+      --bg: #0f0c0c;
+      --bg-warm: #000000;
+      --ember-dim: #b43838;
+      --text: #ecd9d9;
+      --text-dim: #918787;
+    }
+    * { box-sizing: border-box; }
+    html, body {
+      margin: 0;
+      padding: 0;
+      height: 100%;
+      background: radial-gradient(ellipse at 50% 30%, var(--bg-warm), var(--bg) 70%);
+      color: var(--text);
+      font-family: 'Georgia', 'Iowan Old Style', serif;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+    }
+    .wrap {
+      text-align: center;
+    }
+    .wrap img {
+      width: 140px;
+      height: auto;
+      margin-bottom: 1.2rem;
+      animation: pulse 1.4s ease-in-out infinite;
+    }
+    p {
+      font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
+      font-size: 1rem;
+      color: var(--text-dim);
+      letter-spacing: 0.02em;
+    }
+    p a {
+      color: var(--ember-dim);
+    }
+    @keyframes pulse {
+      0%, 100% { transform: scale(1); opacity: 1; }
+      50% { transform: scale(1.05); opacity: 0.85; }
+    }
+  </style>
 </head>
 <body>
-  <p>Redirecting to <a href="/home">/home</a>...</p>
+  <div class="wrap">
+    <img src="/sunny.png" alt="Sunny">
+    <p>Redirecting to <a href="/home">/home</a>&hellip;</p>
+  </div>
 </body>
 </html>
