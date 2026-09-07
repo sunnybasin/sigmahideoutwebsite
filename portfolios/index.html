@@ -162,6 +162,13 @@
       height: 140px;
       object-fit: cover;
     }
+    #preview-loading {
+      font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
+      font-size: 0.8rem;
+      color: var(--text-dim);
+      text-align: center;
+      padding: 1rem;
+    }
 
     @media (max-width: 700px) {
       nav {
@@ -198,19 +205,20 @@
   <!--
     EDIT YOUR PORTFOLIO LIST HERE.
     Each <li> is one entry:
-      - href        = where the link goes
-      - data-preview = path to the preview image for that entry
+      - href = where the link goes
       - text between <a>...</a> = the name shown in the list
+    Previews are generated automatically from the URL — no image needed.
     Add or remove <li> lines to add/remove portfolios.
   -->
   <ul class="portfolio-list">
-    <li><a href="https://ragdollportfoliosh.carrd.co/" data-preview="/previews/portfolio1.png">Ragdulls</a></li>
-    <li><a href="https://cinnamon023portfoliosh.carrd.co/" data-preview="/previews/portfolio2.png">Cin</a></li>
-    <li><a href="https://jeanportfolio123.carrd.co/" data-preview="/previews/portfolio3.png">Jean</a></li>
+    <li><a href="https://ragdollportfoliosh.carrd.co/">Sigma Ragballs</a></li>
+    <li><a href="https://cinnamon023portfoliosh.carrd.co/">Cin da Goat</a></li>
+    <li><a href="https://ulricportfoliosh.carrd.co/">Potato Lady Ulric</a></li>
   </ul>
 </main>
 
 <div id="preview-box">
+  <div id="preview-loading">loading preview&hellip;</div>
   <img id="preview-img" src="" alt="Preview">
 </div>
 
@@ -218,12 +226,24 @@
 <script>
   const previewBox = document.getElementById('preview-box');
   const previewImg = document.getElementById('preview-img');
-  const links = document.querySelectorAll('.portfolio-list a[data-preview]');
+  const previewLoading = document.getElementById('preview-loading');
+  const links = document.querySelectorAll('.portfolio-list a');
 
   links.forEach(link => {
+    // Auto-generate a screenshot preview from the URL — no manual image needed
+    const targetUrl = link.getAttribute('href');
+    const screenshotUrl = 'https://s.wordpress.com/mshots/v1/' + encodeURIComponent(targetUrl) + '?w=400';
+
     link.addEventListener('mouseenter', () => {
-      previewImg.src = link.getAttribute('data-preview');
+      previewImg.style.display = 'none';
+      previewLoading.style.display = 'block';
       previewBox.classList.add('visible');
+
+      previewImg.onload = () => {
+        previewLoading.style.display = 'none';
+        previewImg.style.display = 'block';
+      };
+      previewImg.src = screenshotUrl;
     });
 
     link.addEventListener('mousemove', (e) => {
