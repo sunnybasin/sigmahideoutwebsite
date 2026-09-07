@@ -37,7 +37,7 @@
       display: flex;
       align-items: center;
       justify-content: space-between;
-      padding: 1.4rem 8vw;
+      padding: 0.8rem 8vw;
       font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
     }
     nav .brand {
@@ -65,7 +65,7 @@
     nav a {
       color: var(--text-dim);
       text-decoration: none;
-      font-size: 0.95rem;
+      font-size: 0.78rem;
       transition: color 0.15s ease;
     }
     nav a:hover {
@@ -77,14 +77,10 @@
       min-height: calc(100vh - 70px);
       display: flex;
       flex-direction: column;
-      align-items: center;
-      justify-content: center;
-      text-align: center;
-      padding: 4vh 8vw 8vh;
-    }
-    main img {
-      max-width: 220px;
-      margin-bottom: 1.5rem;
+      align-items: flex-start;
+      justify-content: flex-start;
+      padding: 2vh 8vw 8vh;
+      max-width: 640px;
     }
     .badge {
       font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
@@ -98,7 +94,7 @@
       background: rgba(255, 19, 19, 0.8);
     }
     h1 {
-      font-size: clamp(2.2rem, 7vw, 3.6rem);
+      font-size: clamp(2.6rem, 8vw, 4.6rem);
       line-height: 1.02;
       margin: 0 0 1.1rem 0;
       font-weight: 400;
@@ -115,6 +111,56 @@
     }
     .fire {
       color: var(--ember-dim);
+    }
+
+    /* Tic-tac style scrollbar */
+    ::-webkit-scrollbar {
+      width: 10px;
+    }
+    ::-webkit-scrollbar-track {
+      background: transparent;
+    }
+    ::-webkit-scrollbar-thumb {
+      background: var(--ember-dim);
+      border-radius: 999px;
+      border: 2px solid var(--bg);
+      background-clip: padding-box;
+      min-height: 40px;
+    }
+    ::-webkit-scrollbar-thumb:hover {
+      background: var(--text-dim);
+      background-clip: padding-box;
+    }
+    html {
+      scrollbar-width: thin;
+      scrollbar-color: var(--ember-dim) transparent;
+    }
+    .link-buttons {
+      display: flex;
+      flex-direction: column;
+      gap: 1.2rem;
+      margin-top: 1.6rem;
+      width: 100%;
+      max-width: 420px;
+    }
+    .link-btn {
+      display: block;
+      text-align: center;
+      font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
+      font-weight: 600;
+      font-size: 1.3rem;
+      letter-spacing: 0.02em;
+      color: var(--text);
+      text-decoration: none;
+      border: 3px solid var(--ember-dim);
+      border-radius: 4px;
+      padding: 1.5rem 1.5rem;
+      background: rgba(180, 56, 56, 0.22);
+      transition: background 0.15s ease, transform 0.1s ease;
+    }
+    .link-btn:hover {
+      background: rgba(180, 56, 56, 0.4);
+      transform: translateY(-2px);
     }
     @media (max-width: 700px) {
       nav {
@@ -140,9 +186,11 @@
   </ul>
 </nav>
 <main>
-  <img src="/confused.png" alt="Confused cat">
-  <h1>whoops!</h1>
-  <p class="tagline">this page isn't done yet. come back later.</p>
+  <span class="badge">more</span>
+  <h1>links</h1>
+  <div class="link-buttons">
+    <a class="link-btn" href="/portfolios">portfolios</a>
+  </div>
 </main>
 <script src="/particles.js?v=2"></script>
 </body>
