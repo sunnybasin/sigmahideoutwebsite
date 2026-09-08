@@ -31,6 +31,32 @@
     color: var(--text);
     font-family: "Space Grotesk", -apple-system, BlinkMacSystemFont, "Segoe UI", Helvetica, Arial, sans-serif;
     min-height: 100vh;
+    cursor: url("data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAACAAAAAoCAYAAACfKfiZAAABTklEQVR4nO1YOw6CQBB9GBMSG0sTlcLE0tjaW+EpLLyIF7HwFFKReAVjaYcWlpRWWMDirDtxwQ+DCa+B7E52hvdmZtkFCIY9Nxn23AQVoq0cV+mUoiXlWMGhXx8dtgAAb7pkjc/Xm/PtAGrGQDA3DOLLLn+frFxj/lNWxBkQD6BtM+gOFvl7FKTPJ1mMEi4jizgD4gFYq0DDeG2OnR5jShpaLTY5NAbiy07TtwpoDBw3NwB64mnoZx2yM3q9KmHF80NjmrIingPiAZST4BlFJckQ72cA9CQVZ0A8AFYCisJyFICqiFpVgXUzoo3pHTZoH+C6ojgDTQBNANYqoLBt1apKbJlP8V8McOcCrnvSPyvPD/NO2/QBDqwEHNUATyE9Fxw3aZLSlk0lUra12ozEA3C425F3T7xqLa4ygIe0mgS/uHQog584t905NUlIcQcluH38ZjrkUQAAAABJRU5ErkJggg==") 2 2, auto;
+  }
+
+  a, button, .icon-btn, audio{
+    cursor: url("data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAAB4AAAAkCAYAAACe0YppAAABUUlEQVR4nGNkIALIiLP/h7GfvPzJSIweQoCJGoaQA/C6HubTxzuc4GKyHvsYGBgo9/mA+XjUYroBFnI1ImcxBgbSE9vQ8zFyFmNgYGCQ9dj3H10NvlAg22JsIMJd8n+khxSc71941g7KlIE6ZBlNLGZgYGAw0uRH9uVBJPZ3BgYGuMV0iePHO5wYeos02ZETJAt66mRgoF5FgA9QLaihiQ2ng8PcJJnC3CThiZAFTSMDAwP2FEptgNXHMEfAaiJscsQAfGoHvj6WEWf/f2GlDYMwPxtNLYSF4sD7mIGBgUFGnP0bAwMDJynxSCoYcB8PjqCGARlx9r8MDAwMj3c4Uc1hq3Y9/1fcd50JViriKrloHhKjcYwCsDXoyQHQLDTjycufmTCxkRfURNXH//9DaklGRtLaBzB92ABRJkHj+h+p+RpfB2/kxTEpQU02GFRBDQCWhGaEIC+iNQAAAABJRU5ErkJggg==") 11 1, pointer;
+  }
+
+  ::-webkit-scrollbar{
+    width: 16px;
+  }
+  ::-webkit-scrollbar-track{
+    background: var(--bg);
+    border-left: 1px solid var(--line);
+  }
+  ::-webkit-scrollbar-thumb{
+    background: var(--yellow-deep);
+    border: 3px solid var(--bg);
+    border-radius: 0;
+    box-shadow: inset 0 0 0 2px var(--ink);
+  }
+  ::-webkit-scrollbar-thumb:hover{
+    background: var(--yellow);
+  }
+  html{
+    scrollbar-color: var(--yellow-deep) var(--bg);
+    scrollbar-width: auto;
   }
 
   #dots{
@@ -463,7 +489,7 @@
     </div>
   </section>
 
-  <footer>made by hand &middot; last updated 2026</footer>
+  <footer>sunnybasin &middot; last updated 2026</footer>
 
 </div>
 
