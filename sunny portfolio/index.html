@@ -1,0 +1,272 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Sigma Hideout</title>
+    <link rel="icon" href="/favicon.ico" type="image/x-icon">
+  <style>
+    :root {
+      --bg: #0f0c0c;
+      --bg-warm: #000000;
+      --ember: #400303;
+      --ember-dim: #b43838;
+      --teal: #3c5a52;
+      --text: #ecd9d9;
+      --text-dim: #918787;
+    }
+    * { box-sizing: border-box; }
+    html, body {
+      margin: 0;
+      padding: 0;
+      height: 100%;
+      background: radial-gradient(ellipse at 50% 20%, var(--bg-warm), var(--bg) 70%);
+      color: var(--text);
+      font-family: 'Georgia', 'Iowan Old Style', serif;
+      overflow-x: hidden;
+    }
+    canvas#particles {
+      position: fixed;
+      inset: 0;
+      z-index: 0;
+      display: block;
+    }
+    nav {
+      position: relative;
+      z-index: 2;
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      padding: 1.4rem 8vw;
+      font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
+    }
+    nav .brand {
+      font-family: 'Georgia', 'Iowan Old Style', serif;
+      font-size: 1.15rem;
+      color: var(--text);
+      display: flex;
+      align-items: center;
+      gap: 0.6rem;
+    }
+    nav .brand img {
+      width: 24px;
+      height: 24px;
+    }
+    nav .brand .fire {
+      color: var(--ember-dim);
+    }
+    nav ul {
+      list-style: none;
+      display: flex;
+      gap: 2rem;
+      margin: 0;
+      padding: 0;
+    }
+    nav a {
+      color: var(--text-dim);
+      text-decoration: none;
+      font-size: 0.95rem;
+      transition: color 0.15s ease;
+    }
+    nav a:hover {
+      color: var(--ember-dim);
+    }
+    main {
+      position: relative;
+      z-index: 1;
+      min-height: calc(100vh - 70px);
+      display: flex;
+      flex-direction: column;
+      align-items: flex-start;
+      justify-content: flex-start;
+      padding: 4vh 8vw 8vh;
+      max-width: 640px;
+    }
+    .badge {
+      font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
+      font-size: 0.72rem;
+      letter-spacing: 0.02em;
+      color: var(--text);
+      border: 1px solid var(--ember-dim);
+      padding: 0.25rem 0.7rem;
+      border-radius: 999px;
+      margin-bottom: 1.6rem;
+      background: rgba(255, 19, 19, 0.8);
+    }
+    h1 {
+      font-size: clamp(2.6rem, 8vw, 4.6rem);
+      line-height: 1.02;
+      margin: 0 0 1.1rem 0;
+      font-weight: 400;
+      color: var(--text);
+      text-shadow: 0 0 40px rgba(255, 19, 19, 0.8);
+    }
+    p.tagline {
+      font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
+      font-size: 1.05rem;
+      line-height: 1.6;
+      color: var(--text-dim);
+      max-width: 46ch;
+      margin: 0;
+    }
+    .fire {
+      color: var(--ember-dim);
+    }
+
+    /* Portfolio list */
+    .portfolio-list {
+      list-style: none;
+      margin: 1.8rem 0 0;
+      padding: 0;
+      width: 100%;
+    }
+    .portfolio-list li {
+      border-bottom: 1px solid rgba(180, 56, 56, 0.3);
+    }
+    .portfolio-list a {
+      display: block;
+      padding: 1.1rem 0.4rem;
+      font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
+      font-size: 1.2rem;
+      color: var(--text);
+      text-decoration: none;
+      transition: color 0.15s ease, padding-left 0.15s ease;
+    }
+    .portfolio-list a:hover {
+      color: var(--ember-dim);
+      padding-left: 0.8rem;
+    }
+
+    /* Hover preview box */
+    #preview-box {
+      position: fixed;
+      z-index: 10;
+      pointer-events: none;
+      width: 220px;
+      border: 2px solid var(--ember-dim);
+      border-radius: 6px;
+      overflow: hidden;
+      background: var(--bg);
+      box-shadow: 0 8px 30px rgba(0, 0, 0, 0.6);
+      opacity: 0;
+      transform: translateY(6px);
+      transition: opacity 0.12s ease, transform 0.12s ease;
+    }
+    #preview-box.visible {
+      opacity: 1;
+      transform: translateY(0);
+    }
+    #preview-box img {
+      display: block;
+      width: 100%;
+      height: 140px;
+      object-fit: cover;
+    }
+    #preview-loading {
+      font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
+      font-size: 0.8rem;
+      color: var(--text-dim);
+      text-align: center;
+      padding: 1rem;
+    }
+
+    @media (max-width: 700px) {
+      nav {
+        flex-direction: column;
+        gap: 0.8rem;
+        padding: 1.2rem 6vw;
+      }
+      nav ul {
+        gap: 1.2rem;
+      }
+      /* previews don't work well on touch devices, hide on small screens */
+      #preview-box {
+        display: none;
+      }
+    }
+  </style>
+</head>
+<body>
+<canvas id="particles"></canvas>
+<nav>
+  <span class="brand"><img src="/favicon.ico" alt="">sigma <span class="fire">hideout</span></span>
+  <ul>
+    <li><a href="/home">home</a></li>
+    <li><a href="/about">about</a></li>
+    <li><a href="/gallery">gallery</a></li>
+    <li><a href="/more">more</a></li>
+  </ul>
+</nav>
+<main>
+  <span class="badge">portfolios</span>
+  <h1 style="font-size: clamp(2.2rem, 6vw, 3.2rem);">portfolios</h1>
+  <p class="tagline">hover a name to preview, click to open.</p>
+
+  <!--
+    EDIT YOUR PORTFOLIO LIST HERE.
+    Each <li> is one entry:
+      - href = where the link goes
+      - text between <a>...</a> = the name shown in the list
+    Previews are generated automatically from the URL — no image needed.
+    Add or remove <li> lines to add/remove portfolios.
+  -->
+  <ul class="portfolio-list">
+    <li><a href="https://ragdollportfoliosh.carrd.co/">Ragdulls</a></li>
+    <li><a href="https://cinnamon023portfoliosh.carrd.co/">Cin</a></li>
+    <li><a href="https://ulricportfoliosh.carrd.co/">Ulric</a></li>
+    <li><a href="https://jeanportfoliosh.carrd.co/">Jean</a></li>
+
+  </ul>
+</main>
+
+<div id="preview-box">
+  <div id="preview-loading">loading preview&hellip;</div>
+  <img id="preview-img" src="" alt="Preview">
+</div>
+
+<script src="/particles.js?v=2"></script>
+<script>
+  const previewBox = document.getElementById('preview-box');
+  const previewImg = document.getElementById('preview-img');
+  const previewLoading = document.getElementById('preview-loading');
+  const links = document.querySelectorAll('.portfolio-list a');
+
+  links.forEach(link => {
+    // Auto-generate a screenshot preview from the URL — no manual image needed
+    const targetUrl = link.getAttribute('href');
+    const screenshotUrl = 'https://s.wordpress.com/mshots/v1/' + encodeURIComponent(targetUrl) + '?w=400';
+
+    link.addEventListener('mouseenter', () => {
+      previewImg.style.display = 'none';
+      previewLoading.style.display = 'block';
+      previewBox.classList.add('visible');
+
+      previewImg.onload = () => {
+        previewLoading.style.display = 'none';
+        previewImg.style.display = 'block';
+      };
+      previewImg.src = screenshotUrl;
+    });
+
+    link.addEventListener('mousemove', (e) => {
+      const offset = 18;
+      let x = e.clientX + offset;
+      let y = e.clientY + offset;
+
+      // keep the box on screen
+      const boxWidth = previewBox.offsetWidth;
+      const boxHeight = previewBox.offsetHeight;
+      if (x + boxWidth > window.innerWidth) x = e.clientX - boxWidth - offset;
+      if (y + boxHeight > window.innerHeight) y = e.clientY - boxHeight - offset;
+
+      previewBox.style.left = x + 'px';
+      previewBox.style.top = y + 'px';
+    });
+
+    link.addEventListener('mouseleave', () => {
+      previewBox.classList.remove('visible');
+    });
+  });
+</script>
+</body>
+</html>
