@@ -4,6 +4,8 @@
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
 <title>sunnybasin &middot; projects</title>
+<link rel="canonical" href="https://sigmahideout.de/projects.html">
+<meta property="og:url" content="https://sigmahideout.de/projects.html">
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
 <link href="https://fonts.googleapis.com/css2?family=Pixelify+Sans:wght@500;700&family=Space+Grotesk:wght@400;500;600;700&display=swap" rel="stylesheet">
@@ -383,7 +385,7 @@
     <div class="gallery" id="gallery-current">
       <p class="empty-state">loading projects&hellip;</p>
     </div>
-    <button type="button" class="btn secondary" id="toggle-past" style="margin-top:22px;">other projects &darr;</button>
+    <button type="button" class="btn secondary" id="toggle-past" style="margin-top:22px;">past projects &darr;</button>
     <div class="gallery" id="gallery-past" style="display:none; margin-top:20px;"></div>
   </section>
 
@@ -556,7 +558,7 @@
       ? past.map(function(pair){ return cardHtml(pair[0], pair[1]); }).join('')
       : '<p class="empty-state">no past projects listed yet.</p>';
 
-    toggleBtn.textContent = pastOpen ? 'other projects \u2191' : 'other projects \u2193';
+    toggleBtn.textContent = pastOpen ? 'past projects \u2191' : 'past projects \u2193';
 
     document.querySelectorAll('.remove-btn').forEach(function(btn){
       btn.addEventListener('click', function(){
@@ -571,7 +573,7 @@
   toggleBtn.addEventListener('click', function(){
     pastOpen = !pastOpen;
     galleryPast.style.display = pastOpen ? 'grid' : 'none';
-    toggleBtn.textContent = pastOpen ? 'other projects \u2191' : 'other projects \u2193';
+    toggleBtn.textContent = pastOpen ? 'past projects \u2191' : 'past projects \u2193';
   });
 
   function saveDraft(){
