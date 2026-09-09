@@ -1,0 +1,30 @@
+[
+  {
+    "title": "chud furry head",
+    "link": "",
+    "desc": "in-progress build, more details soon",
+    "status": "current",
+    "image": ""
+  },
+  {
+    "title": "protogen code",
+    "link": "",
+    "desc": "software/electronics for the protogen build",
+    "status": "current",
+    "image": ""
+  },
+  {
+    "title": "animations w/ ragdoll",
+    "link": "",
+    "desc": "ragdoll-based animation experiments",
+    "status": "current",
+    "image": ""
+  },
+  {
+    "title": "sticker gun",
+    "link": "",
+    "desc": "sticker-wrapped nerf shotgun build",
+    "status": "past",
+    "image": ""
+  }
+]
