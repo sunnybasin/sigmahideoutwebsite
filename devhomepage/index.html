@@ -166,15 +166,31 @@
         min-width: 4.6rem;
       }
     }
-    @media (max-width: 700px) {
-      nav {
-        flex-direction: column;
-        gap: 0.8rem;
-        padding: 1.2rem 6vw;
-      }
-      nav ul {
-        gap: 1.2rem;
-      }
+    .wip {
+      width: 100%;
+      max-width: 480px;
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      justify-content: center;
+      text-align: center;
+      gap: 1rem;
+      margin: 1.5rem auto 0;
+      padding: 2rem 1.5rem;
+      border: 1px solid var(--ember-dim);
+      border-radius: 18px;
+      background: rgba(64, 3, 3, 0.25);
+    }
+    .wip img {
+      width: 160px;
+      max-width: 50%;
+      height: auto;
+    }
+    .wip p {
+      font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
+      font-size: 1.05rem;
+      color: var(--text-dim);
+      margin: 0;
     }
   </style>
 </head>
@@ -192,13 +208,18 @@
 </nav>
 
 <main>
-  <!-- page-specific content goes here -->
+  <h1 style="align-self:center; text-align:center; width:100%;">We are <span class="fire">Sigma Hideout</span></h1>
+  <div class="wip">
+    <div style="font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif; font-size: 0.85rem; letter-spacing: 0.1em; text-transform: uppercase; color: var(--text-dim);">Upcoming Events</div>
+    <img src="/sunny3.png" alt="Confused cat mascot">
+    <p>Sorry! This is a work in progress!</p>
+  </div>
 </main>
 
 <script src="/particles.js?v=2"></script>
 <script>
 (function () {
-  fetch('/devhomepage/events.json')
+  fetch('/events.json')
     .then(res => res.json())
     .then(events => {
       const anniversary = events.anniversary;
