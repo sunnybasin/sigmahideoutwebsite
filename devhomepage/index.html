@@ -220,6 +220,11 @@
 
       const target = new Date(anniversary.date).getTime();
 
+      if (isNaN(target)) {
+        el.querySelector('.countdown-timer').innerHTML = `<div class="countdown-unit"><span class="num" style="font-size:1rem;">Invalid date — use YYYY-MM-DDTHH:MM:SS</span></div>`;
+        return;
+      }
+
       function tick() {
         const diff = target - Date.now();
         if (diff <= 0) {
