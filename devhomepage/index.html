@@ -77,10 +77,12 @@
       min-height: calc(100vh - 70px);
       display: flex;
       flex-direction: column;
-      align-items: flex-start;
+      align-items: center;
       justify-content: center;
+      text-align: center;
       padding: 4vh 8vw 8vh;
       max-width: 640px;
+      margin: 0 auto;
     }
     .badge {
       font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
@@ -116,54 +118,50 @@
       font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
       position: relative;
       z-index: 2;
-      width: 100%;
-      display: flex;
-      flex-direction: column;
+      display: inline-flex;
       align-items: center;
-      gap: 1.2rem;
-      padding: 2rem 0 1rem;
+      gap: 0.7rem;
+      margin: 0 auto 1.5rem;
+      padding: 0.5rem 1.1rem;
+      border: 1px solid var(--ember-dim);
+      border-radius: 999px;
+      background: rgba(64, 3, 3, 0.35);
     }
     .countdown .countdown-label {
-      font-size: 1.4rem;
-      letter-spacing: 0.12em;
+      font-size: 0.75rem;
+      letter-spacing: 0.06em;
       text-transform: uppercase;
       color: var(--text-dim);
+      white-space: nowrap;
     }
     .countdown .countdown-timer {
       display: flex;
-      gap: 1.5rem;
+      gap: 0.6rem;
     }
     .countdown .countdown-unit {
       display: flex;
-      flex-direction: column;
-      align-items: center;
-      background: rgba(64, 3, 3, 0.4);
-      border: 1px solid var(--ember-dim);
-      border-radius: 18px;
-      padding: 1.4rem 1.8rem;
-      min-width: 7rem;
+      flex-direction: row;
+      align-items: baseline;
+      gap: 0.2rem;
     }
     .countdown .countdown-unit .num {
-      font-size: clamp(3rem, 9vw, 6.5rem);
+      font-size: 1rem;
       color: var(--ember-dim);
-      font-family: 'Georgia', 'Iowan Old Style', serif;
+      font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
+      font-weight: 600;
       line-height: 1;
-      text-shadow: 0 0 40px rgba(255, 19, 19, 0.6);
     }
     .countdown .countdown-unit .unit-label {
-      font-size: 1rem;
+      font-size: 0.7rem;
       color: var(--text-dim);
-      letter-spacing: 0.08em;
-      margin-top: 0.5rem;
-      text-transform: uppercase;
+      letter-spacing: 0.02em;
+      text-transform: lowercase;
     }
     @media (max-width: 700px) {
-      .countdown .countdown-timer {
-        gap: 0.8rem;
-      }
-      .countdown .countdown-unit {
-        padding: 0.9rem 1rem;
-        min-width: 4.6rem;
+      .countdown {
+        flex-wrap: wrap;
+        justify-content: center;
+        text-align: center;
       }
     }
     .wip {
@@ -208,7 +206,7 @@
 </nav>
 
 <main>
-  <h1 style="align-self:center; text-align:center; width:100%;">We are <span class="fire">Sigma Hideout</span></h1>
+  <h1>We are <span class="fire">Sigma Hideout</span></h1>
   <div class="wip">
     <div style="font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif; font-size: 0.85rem; letter-spacing: 0.1em; text-transform: uppercase; color: var(--text-dim);">Upcoming Events</div>
     <img src="/sunny3.png" alt="Confused cat mascot">
@@ -229,12 +227,12 @@
       const el = document.createElement('div');
       el.className = 'countdown';
       el.innerHTML = `
-        <div class="countdown-label">${anniversary.label || 'Countdown'}</div>
+        <span class="countdown-label">${anniversary.label || 'Countdown'}</span>
         <div class="countdown-timer">
-          <div class="countdown-unit"><span class="num" data-unit="days">--</span><span class="unit-label">days</span></div>
-          <div class="countdown-unit"><span class="num" data-unit="hours">--</span><span class="unit-label">hrs</span></div>
-          <div class="countdown-unit"><span class="num" data-unit="mins">--</span><span class="unit-label">min</span></div>
-          <div class="countdown-unit"><span class="num" data-unit="secs">--</span><span class="unit-label">sec</span></div>
+          <span class="countdown-unit"><span class="num" data-unit="days">--</span><span class="unit-label">d</span></span>
+          <span class="countdown-unit"><span class="num" data-unit="hours">--</span><span class="unit-label">h</span></span>
+          <span class="countdown-unit"><span class="num" data-unit="mins">--</span><span class="unit-label">m</span></span>
+          <span class="countdown-unit"><span class="num" data-unit="secs">--</span><span class="unit-label">s</span></span>
         </div>
       `;
       nav.insertAdjacentElement('afterend', el);
