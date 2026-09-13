@@ -285,12 +285,6 @@
   <p class="tagline fade-in">hover a name to preview, click to open.</p>
 
   <div class="portfolio-layout fade-in">
-    <div class="preview-panel" id="preview-panel">
-      <div class="preview-placeholder" id="preview-placeholder">hover a name to preview it here</div>
-      <img id="preview-img-a" class="preview-layer" alt="Portfolio preview">
-      <img id="preview-img-b" class="preview-layer" alt="Portfolio preview">
-    </div>
-
     <!--
       EDIT YOUR PORTFOLIO LIST HERE.
       Each <li> is one entry:
@@ -313,6 +307,13 @@
     </ul>
   </div>
 </main>
+
+<!-- Lives outside any fade-in/transformed container so `position: fixed` anchors to the real viewport -->
+<div class="preview-panel" id="preview-panel">
+  <div class="preview-placeholder" id="preview-placeholder">hover a name to preview it here</div>
+  <img id="preview-img-a" class="preview-layer" alt="Portfolio preview">
+  <img id="preview-img-b" class="preview-layer" alt="Portfolio preview">
+</div>
 
 <footer class="fade-in">
   <ul>
