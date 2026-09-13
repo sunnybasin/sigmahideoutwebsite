@@ -4,7 +4,7 @@
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
   <title>Sigma Hideout</title>
-    <link rel="icon" href="/favicon.ico" type="image/x-icon">
+  <link rel="icon" href="/favicon.ico" type="image/x-icon">
   <style>
     :root {
       --bg: #0f0c0c;
@@ -24,6 +24,22 @@
       color: var(--text);
       font-family: 'Georgia', 'Iowan Old Style', serif;
       overflow-x: hidden;
+      scrollbar-width: thin;
+      scrollbar-color: var(--ember-dim) var(--bg);
+    }
+    ::-webkit-scrollbar {
+      width: 12px;
+    }
+    ::-webkit-scrollbar-track {
+      background: var(--bg);
+    }
+    ::-webkit-scrollbar-thumb {
+      background: var(--ember);
+      border: 2px solid var(--bg);
+      border-radius: 999px;
+    }
+    ::-webkit-scrollbar-thumb:hover {
+      background: var(--ember-dim);
     }
     canvas#particles {
       position: fixed;
@@ -79,8 +95,10 @@
       flex-direction: column;
       align-items: flex-start;
       justify-content: flex-start;
-      padding: 4vh 8vw 8vh;
-      max-width: 640px;
+      text-align: left;
+      padding: 6vh 8vw 10vh;
+      width: 100%;
+      margin: 0 auto;
     }
     .badge {
       font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
@@ -94,7 +112,7 @@
       background: rgba(255, 19, 19, 0.8);
     }
     h1 {
-      font-size: clamp(2.6rem, 8vw, 4.6rem);
+      font-size: clamp(3.2rem, 9vw, 6rem);
       line-height: 1.02;
       margin: 0 0 1.1rem 0;
       font-weight: 400;
@@ -112,82 +130,384 @@
     .fire {
       color: var(--ember-dim);
     }
-
-    /* Portfolio list */
-    .portfolio-list {
-      list-style: none;
-      margin: 1.8rem 0 0;
-      padding: 0;
-      width: 100%;
-    }
-    .portfolio-list li {
-      border-bottom: 1px solid rgba(180, 56, 56, 0.3);
-    }
-    .portfolio-list a {
-      display: block;
-      padding: 1.1rem 0.4rem;
+    .countdown {
       font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
-      font-size: 1.2rem;
-      color: var(--text);
-      text-decoration: none;
-      transition: color 0.15s ease, padding-left 0.15s ease;
+      position: relative;
+      z-index: 2;
+      display: flex;
+      width: fit-content;
+      align-items: center;
+      gap: 0.6rem;
+      margin: 0 auto 1.5rem 8vw;
+      padding: 0.45rem 1rem;
+      border: 1px solid var(--ember-dim);
+      border-radius: 999px;
+      background: rgba(64, 3, 3, 0.35);
+      max-width: calc(100vw - 4rem);
     }
-    .portfolio-list a:hover {
+    .countdown .countdown-label {
+      font-size: 0.72rem;
+      letter-spacing: 0.06em;
+      text-transform: uppercase;
+      color: var(--text-dim);
+      white-space: nowrap;
+    }
+    .countdown .countdown-timer {
+      display: flex;
+      gap: 0.5rem;
+    }
+    .countdown .countdown-unit {
+      display: flex;
+      flex-direction: row;
+      align-items: baseline;
+      gap: 0.15rem;
+    }
+    .countdown .countdown-unit .num {
+      font-size: 0.85rem;
       color: var(--ember-dim);
-      padding-left: 0.8rem;
+      font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
+      font-weight: 600;
+      line-height: 1;
     }
-
-    /* Hover preview box */
-    #preview-box {
-      position: fixed;
-      z-index: 10;
-      pointer-events: none;
-      width: 220px;
-      border: 2px solid var(--ember-dim);
-      border-radius: 6px;
-      overflow: hidden;
-      background: var(--bg);
-      box-shadow: 0 8px 30px rgba(0, 0, 0, 0.6);
+    .countdown .countdown-unit .unit-label {
+      font-size: 0.65rem;
+      color: var(--text-dim);
+      letter-spacing: 0.02em;
+      text-transform: lowercase;
+    }
+    @media (max-width: 700px) {
+      .countdown {
+        flex-wrap: wrap;
+        margin-left: 6vw;
+        padding: 0.8rem 1.3rem;
+      }
+    }
+    footer {
+      position: relative;
+      z-index: 2;
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      gap: 1rem;
+      padding: 2.5rem 8vw;
+      border-top: 1px solid rgba(180, 56, 56, 0.25);
+      font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
+    }
+    footer ul {
+      list-style: none;
+      display: flex;
+      gap: 2rem;
+      margin: 0;
+      padding: 0;
+    }
+    footer a {
+      color: var(--text-dim);
+      text-decoration: none;
+      font-size: 0.9rem;
+      transition: color 0.15s ease;
+    }
+    footer a:hover {
+      color: var(--ember-dim);
+    }
+    footer .copyright {
+      font-size: 0.8rem;
+      color: var(--text-dim);
+      opacity: 0.7;
+    }
+    @media (max-width: 700px) {
+      footer ul {
+        flex-wrap: wrap;
+        justify-content: center;
+        gap: 1.2rem;
+      }
+    }
+    .about {
+      width: 100%;
+      margin: 4.5rem 0 0 0;
+      padding-top: 3rem;
+      border-top: 1px solid rgba(180, 56, 56, 0.25);
+      display: flex;
+      flex-direction: column;
+      gap: 1.2rem;
+    }
+    .about h2 {
+      font-size: clamp(1.6rem, 4vw, 2.4rem);
+      font-weight: 400;
+      color: var(--text);
+      margin: 0;
+      white-space: nowrap;
+    }
+    .about p {
+      font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
+      font-size: 1.3rem;
+      line-height: 1.75;
+      color: var(--text-dim);
+      max-width: 68ch;
+      margin: 0;
+    }
+    @media (min-width: 900px) {
+      .about {
+        flex-direction: row;
+        align-items: flex-start;
+        gap: 4rem;
+      }
+      .about h2 {
+        flex-shrink: 0;
+        padding-top: 0.2rem;
+      }
+    }
+    .about.about-right {
+      flex-direction: column;
+    }
+    @media (min-width: 900px) {
+      .about.about-right {
+        flex-direction: row-reverse;
+      }
+      .about.about-right h2 {
+        text-align: right;
+      }
+      .about.about-right p {
+        flex: 1;
+        text-align: right;
+        max-width: none;
+        margin-left: auto;
+      }
+    }
+    .fade-in {
       opacity: 0;
-      transform: translateY(6px);
-      transition: opacity 0.12s ease, transform 0.12s ease;
+      transform: translateY(24px);
+      transition: opacity 0.7s ease, transform 0.7s ease;
     }
-    #preview-box.visible {
+    .fade-in.is-visible {
       opacity: 1;
       transform: translateY(0);
     }
-    #preview-box img {
-      display: block;
-      width: 100%;
-      height: 140px;
-      object-fit: cover;
+    @media (prefers-reduced-motion: reduce) {
+      .fade-in {
+        opacity: 1;
+        transform: none;
+        transition: none;
+      }
     }
-    #preview-loading {
+    .divider {
+      width: 100%;
+      border: none;
+      border-top: 1px solid rgba(180, 56, 56, 0.35);
+      margin: 3rem 0;
+    }
+    .video-label {
+      font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
+      font-size: 0.85rem;
+      letter-spacing: 0.1em;
+      text-transform: uppercase;
+      color: var(--text-dim);
+      margin: 0 0 0.8rem 0;
+      width: 100%;
+      text-align: left;
+    }
+    .video-card {
+      width: 100%;
+      margin: 0 0 2rem 0;
+      display: block;
+      position: relative;
+      aspect-ratio: 16 / 9;
+      border: 1px solid var(--ember-dim);
+      border-radius: 18px;
+      overflow: hidden;
+      background: rgba(64, 3, 3, 0.25);
+      cursor: pointer;
+    }
+    .video-card img,
+    .video-card iframe {
+      position: absolute;
+      inset: 0;
+      width: 100%;
+      height: 100%;
+      display: block;
+      object-fit: cover;
+      border: none;
+    }
+    .video-card .play-btn {
+      position: absolute;
+      top: 50%;
+      left: 50%;
+      transform: translate(-50%, -50%);
+      width: 68px;
+      height: 68px;
+      border-radius: 50%;
+      background: rgba(64, 3, 3, 0.75);
+      border: 2px solid var(--ember-dim);
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      transition: background 0.15s ease;
+    }
+    .video-card .play-btn::after {
+      content: '';
+      border-style: solid;
+      border-width: 12px 0 12px 20px;
+      border-color: transparent transparent transparent var(--text);
+      margin-left: 4px;
+    }
+    .video-card:hover .play-btn {
+      background: rgba(180, 56, 56, 0.85);
+    }
+    .content-row {
+      display: flex;
+      flex-direction: column;
+      gap: 1.5rem;
+      width: 100%;
+      margin: 0;
+    }
+    .wip {
+      width: 100%;
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      justify-content: center;
+      text-align: center;
+      gap: 1.2rem;
+      padding: 3rem 2.5rem;
+      border: 1px solid var(--ember-dim);
+      border-radius: 20px;
+      background: rgba(64, 3, 3, 0.25);
+    }
+    .wip img {
+      width: 190px;
+      max-width: 50%;
+      height: auto;
+    }
+    .wip p {
+      font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
+      font-size: 1.2rem;
+      color: var(--text-dim);
+      margin: 0;
+    }
+    .quicklinks {
+      width: 100%;
+      display: flex;
+      flex-direction: column;
+      gap: 1.2rem;
+      padding: 2rem 2.2rem;
+      border: 1px solid var(--ember-dim);
+      border-radius: 20px;
+      background: rgba(64, 3, 3, 0.25);
+    }
+    .quicklinks h3 {
+      font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
+      font-size: 0.85rem;
+      letter-spacing: 0.1em;
+      text-transform: uppercase;
+      color: var(--text-dim);
+      margin: 0;
+    }
+    .quicklinks a {
+      display: flex;
+      align-items: center;
+      gap: 0.9rem;
+      text-decoration: none;
+      color: var(--text);
+      padding: 0.6rem 0.7rem;
+      border-radius: 12px;
+      transition: background 0.15s ease;
+      position: relative;
+    }
+    .quicklinks a:hover {
+      background: rgba(180, 56, 56, 0.2);
+    }
+    .quicklinks a img.link-icon {
+      width: 40px;
+      height: 40px;
+      border-radius: 50%;
+      object-fit: cover;
+      flex-shrink: 0;
+      border: 1px solid var(--ember-dim);
+      background: var(--bg);
+    }
+    .quicklinks a .link-info {
+      display: flex;
+      flex-direction: column;
+      gap: 0.1rem;
+    }
+    .quicklinks a .link-title {
+      font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
+      font-size: 1rem;
+    }
+    .quicklinks a .link-sub {
       font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
       font-size: 0.8rem;
       color: var(--text-dim);
-      text-align: center;
-      padding: 1rem;
     }
-
-    @media (max-width: 700px) {
-      nav {
+    .link-preview {
+      position: absolute;
+      left: calc(100% + 0.8rem);
+      top: 50%;
+      transform: translateY(-50%) scale(0.96);
+      width: 220px;
+      padding: 0.5rem;
+      background: var(--bg-warm);
+      border: 1px solid var(--ember-dim);
+      border-radius: 12px;
+      box-shadow: 0 10px 30px rgba(0,0,0,0.5);
+      opacity: 0;
+      pointer-events: none;
+      transition: opacity 0.15s ease, transform 0.15s ease;
+      z-index: 10;
+    }
+    .link-preview img {
+      width: 100%;
+      aspect-ratio: 16 / 10;
+      object-fit: cover;
+      object-position: top;
+      border-radius: 8px;
+      display: block;
+      background: var(--bg);
+    }
+    .quicklinks a:hover .link-preview {
+      opacity: 1;
+      transform: translateY(-50%) scale(1);
+    }
+    @media (max-width: 1000px) {
+      .link-preview {
+        left: auto;
+        right: 0;
+        top: calc(100% + 0.5rem);
+        transform: none;
+      }
+      .quicklinks a:hover .link-preview {
+        transform: none;
+      }
+    }
+    @media (min-width: 700px) {
+      .content-row {
+        flex-direction: row;
+        align-items: stretch;
+      }
+      .content-row .wip {
+        flex: 2;
+        flex-direction: row;
+        text-align: left;
+        gap: 2.5rem;
+        padding: 3rem 3.5rem;
+      }
+      .content-row .quicklinks {
+        flex: 1;
+      }
+      .wip img {
+        width: 170px;
+        flex-shrink: 0;
+      }
+      .wip-text {
+        display: flex;
         flex-direction: column;
-        gap: 0.8rem;
-        padding: 1.2rem 6vw;
-      }
-      nav ul {
-        gap: 1.2rem;
-      }
-      /* previews don't work well on touch devices, hide on small screens */
-      #preview-box {
-        display: none;
+        gap: 0.7rem;
       }
     }
   </style>
 </head>
 <body>
 <canvas id="particles"></canvas>
+
 <nav>
   <span class="brand"><img src="/favicon.ico" alt="">sigma <span class="fire">hideout</span></span>
   <ul>
@@ -197,82 +517,160 @@
     <li><a href="/more">more</a></li>
   </ul>
 </nav>
+
 <main>
-  <span class="badge">portfolios</span>
-  <h1 style="font-size: clamp(2.2rem, 6vw, 3.2rem);">portfolios</h1>
-  <p class="tagline">hover a name to preview, click to open.</p>
+  <h1 class="fade-in">We are <span class="fire">Sigma Hideout</span></h1>
+  <section class="about fade-in">
+    <h2>About <span class="fire">Us</span></h2>
+    <p>Founded in 2024 by Ragdoll &amp; Yohl, Sigma Hideout has grown from a small group of friends into a server with over 100 members.</p>
+  </section>
 
-  <!--
-    EDIT YOUR PORTFOLIO LIST HERE.
-    Each <li> is one entry:
-      - href = where the link goes
-      - text between <a>...</a> = the name shown in the list
-    Previews are generated automatically from the URL — no image needed.
-    Add or remove <li> lines to add/remove portfolios.
-  -->
-  <ul class="portfolio-list">
-    <li><a href="https://sigmahideout.de/sunny-portfolio/">Sunnybasin</a></li>
-    <li><a href="https://ragdollportfoliosh.carrd.co/">Ragdulls</a></li>
-    <li><a href="https://cinnamon023portfoliosh.carrd.co/">Cin</a></li>
-    <li><a href="https://ulricportfoliosh.carrd.co/">Ulric</a></li>
-    <li><a href="https://thereelpyroportfoliosh.carrd.co/">Pyro</a></li>
-    <li><a href="https://elenaaa2732portfoliosh.carrd.co/">Elena</a></li>
-    <li><a href="https://jeanportfoliosh.carrd.co/">Jean</a></li>  
-    <li><a href="https://mimtalityportfoliosh.carrd.co/">Mimtality</a></li>
-    <li><a href="https://geosport321123.carrd.co/">Geo</a></li>
-    <li><a href="https://reltech.click///">Reloaded</a></li>  
+  <hr class="divider fade-in">
 
-  </ul>
+  <div class="video-label fade-in">2026 New Years Special</div>
+  <div class="video-card fade-in" data-video-id="zKxSFEK9jEE">
+    <img src="/new-years-special.jpg" alt="2026 New Years Special video preview">
+    <span class="play-btn"></span>
+  </div>
+
+  <div class="video-label fade-in">2025 Anniversary Special</div>
+  <div class="video-card fade-in" data-video-id="PgliZHicyzA">
+    <img src="https://img.youtube.com/vi/PgliZHicyzA/maxresdefault.jpg" alt="2025 Anniversary Special video preview"
+         onerror="const t=['sddefault','hqdefault','mqdefault','default'];let i=0;this.onerror=function(){i++;if(i<t.length){this.src='https://img.youtube.com/vi/PgliZHicyzA/'+t[i]+'.jpg';}else{this.onerror=null;}};this.src='https://img.youtube.com/vi/PgliZHicyzA/'+t[0]+'.jpg';">
+    <span class="play-btn"></span>
+  </div>
+
+  <hr class="divider fade-in">
+
+  <div class="content-row fade-in">
+    <div class="quicklinks" id="quicklinks-container">
+      <h3>Quick Links</h3>
+    </div>
+
+    <div class="wip">
+      <img src="/sunny3.png" alt="Confused cat mascot">
+      <div class="wip-text">
+        <div style="font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif; font-size: 0.85rem; letter-spacing: 0.1em; text-transform: uppercase; color: var(--text-dim);">Upcoming Events</div>
+        <p>Sorry! This is a work in progress!</p>
+      </div>
+    </div>
+  </div>
 </main>
 
-<div id="preview-box">
-  <div id="preview-loading">loading preview&hellip;</div>
-  <img id="preview-img" src="" alt="Preview">
-</div>
+<footer class="fade-in">
+  <ul>
+    <li><a href="/home">home</a></li>
+    <li><a href="/about">about</a></li>
+    <li><a href="/gallery">gallery</a></li>
+    <li><a href="/more">more</a></li>
+  </ul>
+  <div class="copyright">&copy; <span id="footer-year"></span> Sigma Hideout. All rights reserved.</div>
+</footer>
 
 <script src="/particles.js?v=2"></script>
 <script>
-  const previewBox = document.getElementById('preview-box');
-  const previewImg = document.getElementById('preview-img');
-  const previewLoading = document.getElementById('preview-loading');
-  const links = document.querySelectorAll('.portfolio-list a');
+  document.getElementById('footer-year').textContent = new Date().getFullYear();
 
-  links.forEach(link => {
-    // Auto-generate a screenshot preview from the URL — no manual image needed
-    const targetUrl = link.getAttribute('href');
-    const screenshotUrl = 'https://s.wordpress.com/mshots/v1/' + encodeURIComponent(targetUrl) + '?w=400';
-
-    link.addEventListener('mouseenter', () => {
-      previewImg.style.display = 'none';
-      previewLoading.style.display = 'block';
-      previewBox.classList.add('visible');
-
-      previewImg.onload = () => {
-        previewLoading.style.display = 'none';
-        previewImg.style.display = 'block';
-      };
-      previewImg.src = screenshotUrl;
+  const observer = new IntersectionObserver((entries) => {
+    entries.forEach(entry => {
+      if (entry.isIntersecting) {
+        entry.target.classList.add('is-visible');
+        observer.unobserve(entry.target);
+      }
     });
+  }, { threshold: 0.15, rootMargin: '0px 0px -50px 0px' });
 
-    link.addEventListener('mousemove', (e) => {
-      const offset = 18;
-      let x = e.clientX + offset;
-      let y = e.clientY + offset;
+  document.querySelectorAll('.fade-in').forEach(el => observer.observe(el));
 
-      // keep the box on screen
-      const boxWidth = previewBox.offsetWidth;
-      const boxHeight = previewBox.offsetHeight;
-      if (x + boxWidth > window.innerWidth) x = e.clientX - boxWidth - offset;
-      if (y + boxHeight > window.innerHeight) y = e.clientY - boxHeight - offset;
+  fetch('/quicklinks.json')
+    .then(res => res.json())
+    .then(data => {
+      const container = document.getElementById('quicklinks-container');
+      (data.links || []).forEach(link => {
+        const a = document.createElement('a');
+        a.href = link.url;
+        a.target = '_blank';
+        a.rel = 'noopener';
+        const screenshotUrl = `https://s.wordpress.com/mshots/v1/${encodeURIComponent(link.url)}?w=400`;
+        a.innerHTML = `
+          <img class="link-icon" src="${link.icon}" alt="${link.title}">
+          <div class="link-info">
+            <span class="link-title">${link.title}</span>
+            <span class="link-sub">${link.sub || ''}</span>
+          </div>
+          <div class="link-preview">
+            <img src="${screenshotUrl}" alt="${link.title} website preview">
+          </div>
+        `;
+        container.appendChild(a);
+      });
+    })
+    .catch(err => console.error('Could not load quicklinks.json:', err));
 
-      previewBox.style.left = x + 'px';
-      previewBox.style.top = y + 'px';
-    });
-
-    link.addEventListener('mouseleave', () => {
-      previewBox.classList.remove('visible');
-    });
+  document.querySelectorAll('.video-card').forEach(card => {
+    card.addEventListener('click', function () {
+      const id = this.dataset.videoId;
+      const start = this.dataset.start ? `&start=${this.dataset.start}` : '';
+      const iframe = document.createElement('iframe');
+      iframe.src = `https://www.youtube.com/embed/${id}?autoplay=1${start}`;
+      iframe.allow = 'accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture';
+      iframe.allowFullscreen = true;
+      this.innerHTML = '';
+      this.appendChild(iframe);
+      this.style.cursor = 'default';
+    }, { once: true });
   });
+</script>
+<script>
+(function () {
+  fetch('/events.json')
+    .then(res => res.json())
+    .then(events => {
+      const anniversary = events.anniversary;
+      if (!anniversary || !anniversary.enabled) return;
+
+      const nav = document.querySelector('nav');
+      const el = document.createElement('div');
+      el.className = 'countdown';
+      el.innerHTML = `
+        <span class="countdown-label">${anniversary.label || 'Countdown'}</span>
+        <div class="countdown-timer">
+          <span class="countdown-unit"><span class="num" data-unit="days">--</span><span class="unit-label">d</span></span>
+          <span class="countdown-unit"><span class="num" data-unit="hours">--</span><span class="unit-label">h</span></span>
+          <span class="countdown-unit"><span class="num" data-unit="mins">--</span><span class="unit-label">m</span></span>
+          <span class="countdown-unit"><span class="num" data-unit="secs">--</span><span class="unit-label">s</span></span>
+        </div>
+      `;
+      nav.insertAdjacentElement('afterend', el);
+
+      const target = new Date(anniversary.date).getTime();
+
+      if (isNaN(target)) {
+        el.querySelector('.countdown-timer').innerHTML = `<div class="countdown-unit"><span class="num" style="font-size:1rem;">Invalid date — use YYYY-MM-DDTHH:MM:SS</span></div>`;
+        return;
+      }
+
+      function tick() {
+        const diff = target - Date.now();
+        if (diff <= 0) {
+          el.querySelector('.countdown-timer').innerHTML = `<div class="countdown-unit"><span class="num">🎉</span></div>`;
+          clearInterval(timer);
+          return;
+        }
+        const days = Math.floor(diff / 86400000);
+        const hours = Math.floor((diff % 86400000) / 3600000);
+        const mins = Math.floor((diff % 3600000) / 60000);
+        const secs = Math.floor((diff % 60000) / 1000);
+        el.querySelector('[data-unit="days"]').textContent = days;
+        el.querySelector('[data-unit="hours"]').textContent = hours;
+        el.querySelector('[data-unit="mins"]').textContent = mins;
+        el.querySelector('[data-unit="secs"]').textContent = secs;
+      }
+      tick();
+      const timer = setInterval(tick, 1000);
+    })
+    .catch(err => console.error('Could not load events.json:', err));
+})();
 </script>
 </body>
 </html>
