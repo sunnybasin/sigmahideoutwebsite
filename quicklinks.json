@@ -19,9 +19,15 @@
       "icon": "/favicon.ico"
     },
     {
+      "title": "Ourbar",
+      "sub": "sigmahideout.de",
+      "url": "https://discord.gg/Xptj9ekpKx/",
+      "icon": "/ourbar.jpg"
+    },
+    {
       "title": "Media Upload Form",
-      "sub": "Dropbox Link",
-      "url": "https://www.dropbox.com/scl/fo/vbdeohegg89pyqb4j59f6/AP1z9jDFUV7lDhsy8xG9MQE?rlkey=tjp0uybzwsi7j1atj4tdeyp8a&st=yzm1wmez&dl=0/",
+      "sub": "Filebin Link",
+      "url": "https://filebin.net/2j02hetsgx84t9yz",
       "icon": "/favicon.ico"
     }
   ]
