@@ -410,8 +410,8 @@
       left: calc(100% + 0.8rem);
       top: 50%;
       transform: translateY(-50%) scale(0.96);
-      width: 150px;
-      padding: 0.7rem;
+      width: 220px;
+      padding: 0.5rem;
       background: var(--bg-warm);
       border: 1px solid var(--ember-dim);
       border-radius: 12px;
@@ -423,8 +423,12 @@
     }
     .link-preview img {
       width: 100%;
+      aspect-ratio: 16 / 10;
+      object-fit: cover;
+      object-position: top;
       border-radius: 8px;
       display: block;
+      background: var(--bg);
     }
     .quicklinks a:hover .link-preview {
       opacity: 1;
@@ -492,13 +496,14 @@
 
   <div class="video-label">2026 New Years Special</div>
   <div class="video-card" data-video-id="zKxSFEK9jEE">
-    <img src="https://img.youtube.com/vi/zKxSFEK9jEE/maxresdefault.jpg" alt="2026 New Years Special video preview" onerror="this.onerror=null;this.src='https://img.youtube.com/vi/zKxSFEK9jEE/hqdefault.jpg';">
+    <img src="/new-years-special.jpg" alt="2026 New Years Special video preview">
     <span class="play-btn"></span>
   </div>
 
   <div class="video-label">2025 Anniversary Special</div>
   <div class="video-card" data-video-id="PgliZHicyzA">
-    <img src="https://img.youtube.com/vi/PgliZHicyzA/maxresdefault.jpg" alt="2025 Anniversary Special video preview" onerror="this.onerror=null;this.src='https://img.youtube.com/vi/PgliZHicyzA/hqdefault.jpg';">
+    <img src="https://img.youtube.com/vi/PgliZHicyzA/maxresdefault.jpg" alt="2025 Anniversary Special video preview"
+         onerror="const t=['sddefault','hqdefault','mqdefault','default'];let i=0;this.onerror=function(){i++;if(i<t.length){this.src='https://img.youtube.com/vi/PgliZHicyzA/'+t[i]+'.jpg';}else{this.onerror=null;}};this.src='https://img.youtube.com/vi/PgliZHicyzA/'+t[0]+'.jpg';">
     <span class="play-btn"></span>
   </div>
 
@@ -542,6 +547,7 @@
         a.href = link.url;
         a.target = '_blank';
         a.rel = 'noopener';
+        const screenshotUrl = `https://s.wordpress.com/mshots/v1/${encodeURIComponent(link.url)}?w=400`;
         a.innerHTML = `
           <img class="link-icon" src="${link.icon}" alt="${link.title}">
           <div class="link-info">
@@ -549,7 +555,7 @@
             <span class="link-sub">${link.sub || ''}</span>
           </div>
           <div class="link-preview">
-            <img src="${link.preview || link.icon}" alt="${link.title} preview">
+            <img src="${screenshotUrl}" alt="${link.title} website preview">
           </div>
         `;
         container.appendChild(a);
