@@ -170,17 +170,17 @@
       .preview-panel {
         display: flex;
         position: fixed;
-        top: 0;
+        top: var(--nav-h, 0px);
         right: 0;
-        bottom: 0;
+        bottom: var(--footer-h, 0px);
         width: var(--preview-w);
         z-index: 1;
         align-items: center;
         justify-content: center;
         background: transparent;
         overflow: hidden;
-        -webkit-mask-image: linear-gradient(to bottom, transparent, black 90px, black calc(100% - 90px), transparent);
-        mask-image: linear-gradient(to bottom, transparent, black 90px, black calc(100% - 90px), transparent);
+        -webkit-mask-image: linear-gradient(to bottom, transparent, black 40px, black calc(100% - 40px), transparent);
+        mask-image: linear-gradient(to bottom, transparent, black 40px, black calc(100% - 40px), transparent);
       }
     }
     .preview-panel .preview-layer {
@@ -329,6 +329,15 @@
 <script src="/particles.js?v=2"></script>
 <script>
   document.getElementById('footer-year').textContent = new Date().getFullYear();
+
+  function updatePanelBounds() {
+    const nav = document.querySelector('nav');
+    const footer = document.querySelector('footer');
+    document.documentElement.style.setProperty('--nav-h', nav.offsetHeight + 'px');
+    document.documentElement.style.setProperty('--footer-h', footer.offsetHeight + 'px');
+  }
+  updatePanelBounds();
+  window.addEventListener('resize', updatePanelBounds);
 
   const observer = new IntersectionObserver((entries) => {
     entries.forEach(entry => {
