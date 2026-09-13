@@ -37,7 +37,7 @@
       display: flex;
       align-items: center;
       justify-content: space-between;
-      padding: 0.8rem 8vw;
+      padding: 1.4rem 8vw;
       font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
     }
     nav .brand {
@@ -65,11 +65,21 @@
     nav a {
       color: var(--text-dim);
       text-decoration: none;
-      font-size: 0.78rem;
+      font-size: 0.95rem;
       transition: color 0.15s ease;
     }
     nav a:hover {
       color: var(--ember-dim);
+    }
+    @media (max-width: 700px) {
+      nav {
+        flex-direction: column;
+        gap: 0.8rem;
+        padding: 1.2rem 6vw;
+      }
+      nav ul {
+        gap: 1.2rem;
+      }
     }
     main {
       position: relative;
@@ -113,7 +123,7 @@
       color: var(--ember-dim);
     }
 
-    /* Tic-tac style scrollbar */
+    /* Themed scrollbar */
     ::-webkit-scrollbar {
       width: 10px;
     }
@@ -164,14 +174,59 @@
       transform: translateY(-2px);
       text-shadow: 0 0 26px rgba(255, 19, 19, 1), 0 0 55px rgba(255, 19, 19, 0.7);
     }
+    footer {
+      position: relative;
+      z-index: 2;
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      gap: 1rem;
+      padding: 2.5rem 8vw;
+      border-top: 1px solid rgba(180, 56, 56, 0.25);
+      font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
+    }
+    footer ul {
+      list-style: none;
+      display: flex;
+      gap: 2rem;
+      margin: 0;
+      padding: 0;
+    }
+    footer a {
+      color: var(--text-dim);
+      text-decoration: none;
+      font-size: 0.9rem;
+      transition: color 0.15s ease;
+    }
+    footer a:hover {
+      color: var(--ember-dim);
+    }
+    footer .copyright {
+      font-size: 0.8rem;
+      color: var(--text-dim);
+      opacity: 0.7;
+    }
     @media (max-width: 700px) {
-      nav {
-        flex-direction: column;
-        gap: 0.8rem;
-        padding: 1.2rem 6vw;
-      }
-      nav ul {
+      footer ul {
+        flex-wrap: wrap;
+        justify-content: center;
         gap: 1.2rem;
+      }
+    }
+    .fade-in {
+      opacity: 0;
+      transform: translateY(24px);
+      transition: opacity 0.7s ease, transform 0.7s ease;
+    }
+    .fade-in.is-visible {
+      opacity: 1;
+      transform: translateY(0);
+    }
+    @media (prefers-reduced-motion: reduce) {
+      .fade-in {
+        opacity: 1;
+        transform: none;
+        transition: none;
       }
     }
   </style>
@@ -188,13 +243,15 @@
   </ul>
 </nav>
 <main>
-  <span class="badge">more</span>
-  <h1>pages</h1>
-  <div class="link-buttons">
+  <span class="badge fade-in">more</span>
+  <h1 class="fade-in">pages</h1>
+  <div class="link-buttons fade-in">
     <a class="link-btn" href="/portfolios">portfolios</a>
   </div>
 </main>
-    <ul>
+
+<footer class="fade-in">
+  <ul>
     <li><a href="/home">home</a></li>
     <li><a href="/about">about</a></li>
     <li><a href="/gallery">gallery</a></li>
@@ -202,6 +259,21 @@
   </ul>
   <div class="copyright">&copy; <span id="footer-year"></span> Sigma Hideout. All rights reserved.</div>
 </footer>
+
 <script src="/particles.js?v=2"></script>
+<script>
+  document.getElementById('footer-year').textContent = new Date().getFullYear();
+
+  const observer = new IntersectionObserver((entries) => {
+    entries.forEach(entry => {
+      if (entry.isIntersecting) {
+        entry.target.classList.add('is-visible');
+        observer.unobserve(entry.target);
+      }
+    });
+  }, { threshold: 0.15, rootMargin: '0px 0px -50px 0px' });
+
+  document.querySelectorAll('.fade-in').forEach(el => observer.observe(el));
+</script>
 </body>
 </html>
