@@ -258,10 +258,9 @@
     }
     .divider {
       width: 100%;
-      max-width: 900px;
       border: none;
       border-top: 1px solid rgba(180, 56, 56, 0.35);
-      margin: 3rem 0 3rem auto;
+      margin: 3rem 0;
     }
     .video-label {
       font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
@@ -280,17 +279,22 @@
       margin: 0 0 2rem auto;
       display: block;
       position: relative;
+      aspect-ratio: 16 / 9;
       border: 1px solid var(--ember-dim);
       border-radius: 18px;
       overflow: hidden;
-      text-decoration: none;
       background: rgba(64, 3, 3, 0.25);
+      cursor: pointer;
     }
-    .video-card img {
+    .video-card img,
+    .video-card iframe {
+      position: absolute;
+      inset: 0;
       width: 100%;
+      height: 100%;
       display: block;
-      aspect-ratio: 16 / 9;
       object-fit: cover;
+      border: none;
     }
     .video-card .play-btn {
       position: absolute;
@@ -453,16 +457,16 @@
   <hr class="divider">
 
   <div class="video-label">2026 New Years Special</div>
-  <a class="video-card" href="https://www.youtube.com/watch?v=zKxSFEK9jEE" target="_blank" rel="noopener">
-    <img src="https://img.youtube.com/vi/zKxSFEK9jEE/maxresdefault.jpg" alt="New Years Special video preview">
+  <div class="video-card" data-video-id="zKxSFEK9jEE">
+    <img src="https://img.youtube.com/vi/zKxSFEK9jEE/maxresdefault.jpg" alt="2026 New Years Special video preview">
     <span class="play-btn"></span>
-  </a>
+  </div>
 
   <div class="video-label">2025 Anniversary Special</div>
-  <a class="video-card" href="https://www.youtube.com/watch?v=PgliZHicyzA&t=709s" target="_blank" rel="noopener">
+  <div class="video-card" data-video-id="PgliZHicyzA" data-start="709">
     <img src="https://img.youtube.com/vi/PgliZHicyzA/maxresdefault.jpg" alt="2025 Anniversary Special video preview">
     <span class="play-btn"></span>
-  </a>
+  </div>
 
   <hr class="divider">
 
@@ -508,6 +512,20 @@
 <script src="/particles.js?v=2"></script>
 <script>
   document.getElementById('footer-year').textContent = new Date().getFullYear();
+
+  document.querySelectorAll('.video-card').forEach(card => {
+    card.addEventListener('click', function () {
+      const id = this.dataset.videoId;
+      const start = this.dataset.start ? `&start=${this.dataset.start}` : '';
+      const iframe = document.createElement('iframe');
+      iframe.src = `https://www.youtube.com/embed/${id}?autoplay=1${start}`;
+      iframe.allow = 'accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture';
+      iframe.allowFullscreen = true;
+      this.innerHTML = '';
+      this.appendChild(iframe);
+      this.style.cursor = 'default';
+    }, { once: true });
+  });
 </script>
 <script>
 (function () {
