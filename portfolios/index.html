@@ -202,17 +202,14 @@
       .preview-panel {
         display: flex;
         position: fixed;
-        top: var(--nav-h, 0px);
         right: 0;
-        bottom: var(--footer-h, 0px);
         width: var(--preview-w);
         z-index: 1;
         align-items: center;
         justify-content: center;
         background: transparent;
         overflow: hidden;
-        -webkit-mask-image: linear-gradient(to bottom, transparent, black 40px, black calc(100% - 40px), transparent);
-        mask-image: linear-gradient(to bottom, transparent, black 40px, black calc(100% - 40px), transparent);
+        transition: top 0.1s linear, bottom 0.1s linear;
       }
     }
     .preview-panel .preview-layer {
@@ -397,14 +394,58 @@
   window.addEventListener('resize', updateScrollThumb);
   updateScrollThumb();
 
-  function updatePanelBounds() {
+  // Preview panel: resizes as you scroll so it never covers the nav or footer.
+  // Fades at whichever edge is currently being reserved for nav/footer;
+  // once fully clear of both, it's full height with no vertical fade at all.
+  const previewPanel = document.getElementById('preview-panel');
+  const FADE = 50; // px
+
+  function updatePanelLayout() {
+    if (!previewPanel || window.innerWidth < 900) return;
+
     const nav = document.querySelector('nav');
     const footer = document.querySelector('footer');
-    document.documentElement.style.setProperty('--nav-h', nav.offsetHeight + 'px');
-    document.documentElement.style.setProperty('--footer-h', footer.offsetHeight + 'px');
+    const navH = nav.offsetHeight;
+    const footerH = footer.offsetHeight;
+
+    const scrollY = window.scrollY;
+    const maxScroll = Math.max(document.documentElement.scrollHeight - window.innerHeight, 0);
+
+    const topGap = Math.max(0, navH - scrollY);
+    const bottomGap = Math.max(0, footerH - (maxScroll - scrollY));
+
+    previewPanel.style.top = topGap + 'px';
+    previewPanel.style.bottom = bottomGap + 'px';
+
+    const topFade = topGap > 0;
+    const bottomFade = bottomGap > 0;
+
+    let mask;
+    if (topFade && bottomFade) {
+      mask = `linear-gradient(to bottom, transparent, black ${FADE}px, black calc(100% - ${FADE}px), transparent)`;
+    } else if (topFade) {
+      mask = `linear-gradient(to bottom, transparent, black ${FADE}px)`;
+    } else if (bottomFade) {
+      mask = `linear-gradient(to top, transparent, black ${FADE}px)`;
+    } else {
+      mask = 'none';
+    }
+    previewPanel.style.webkitMaskImage = mask;
+    previewPanel.style.maskImage = mask;
   }
-  updatePanelBounds();
-  window.addEventListener('resize', updatePanelBounds);
+
+  let panelTicking = false;
+  function onScrollOrResize() {
+    if (panelTicking) return;
+    panelTicking = true;
+    requestAnimationFrame(() => {
+      updatePanelLayout();
+      panelTicking = false;
+    });
+  }
+  window.addEventListener('scroll', onScrollOrResize);
+  window.addEventListener('resize', onScrollOrResize);
+  updatePanelLayout();
 
   const observer = new IntersectionObserver((entries) => {
     entries.forEach(entry => {
