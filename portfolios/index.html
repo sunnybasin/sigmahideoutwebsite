@@ -171,10 +171,11 @@
       justify-content: center;
       position: relative;
     }
-    .preview-panel iframe {
+    .preview-panel img {
       width: 100%;
       height: 100%;
-      border: none;
+      object-fit: cover;
+      object-position: top;
       display: block;
     }
     .preview-placeholder {
@@ -296,7 +297,7 @@
 
     <div class="preview-panel" id="preview-panel">
       <div class="preview-placeholder" id="preview-placeholder">hover a name to preview it here</div>
-      <iframe id="preview-iframe" style="display:none;" title="Portfolio preview"></iframe>
+      <img id="preview-img" style="display:none;" alt="Portfolio preview">
     </div>
   </div>
 </main>
@@ -326,25 +327,26 @@
 
   document.querySelectorAll('.fade-in').forEach(el => observer.observe(el));
 
-  // Live iframe preview on hover
+  // Live-ish screenshot preview on hover (iframes get blocked by most portfolio hosts, e.g. Carrd)
   const links = document.querySelectorAll('.portfolio-list a');
-  const iframe = document.getElementById('preview-iframe');
+  const previewImg = document.getElementById('preview-img');
   const placeholder = document.getElementById('preview-placeholder');
   let currentUrl = null;
 
   links.forEach(link => {
     const targetUrl = link.getAttribute('href');
+    const screenshotUrl = 'https://s.wordpress.com/mshots/v1/' + encodeURIComponent(targetUrl) + '?w=900';
 
     link.addEventListener('mouseenter', () => {
       links.forEach(l => l.classList.remove('active'));
       link.classList.add('active');
 
       if (currentUrl !== targetUrl) {
-        iframe.src = targetUrl;
+        previewImg.src = screenshotUrl;
         currentUrl = targetUrl;
       }
       placeholder.style.display = 'none';
-      iframe.style.display = 'block';
+      previewImg.style.display = 'block';
     });
   });
 </script>
