@@ -177,9 +177,10 @@
         z-index: 1;
         align-items: center;
         justify-content: center;
-        background: linear-gradient(180deg, var(--bg), var(--bg-warm) 60%);
+        background: transparent;
         overflow: hidden;
-        border-left: 1px solid rgba(180, 56, 56, 0.25);
+        -webkit-mask-image: linear-gradient(to bottom, transparent, black 90px, black calc(100% - 90px), transparent);
+        mask-image: linear-gradient(to bottom, transparent, black 90px, black calc(100% - 90px), transparent);
       }
     }
     .preview-panel .preview-layer {
