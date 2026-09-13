@@ -25,6 +25,38 @@
       font-family: 'Georgia', 'Iowan Old Style', serif;
       overflow-x: hidden;
     }
+    /* Hide native scrollbar — replaced with a themed overlay version below */
+    html, body {
+      scrollbar-width: none;
+      -ms-overflow-style: none;
+    }
+    html::-webkit-scrollbar,
+    body::-webkit-scrollbar {
+      display: none;
+    }
+    #custom-scrollbar {
+      position: fixed;
+      top: 0;
+      right: 0;
+      bottom: 0;
+      width: 8px;
+      z-index: 999;
+      pointer-events: none;
+    }
+    #custom-scrollbar .thumb {
+      position: absolute;
+      right: 2px;
+      width: 4px;
+      border-radius: 999px;
+      background: var(--ember-dim);
+      opacity: 0.55;
+      transition: opacity 0.15s ease, width 0.15s ease;
+    }
+    #custom-scrollbar:hover .thumb,
+    #custom-scrollbar .thumb.scrolling {
+      opacity: 0.9;
+      width: 6px;
+    }
     canvas#particles {
       position: fixed;
       inset: 0;
@@ -271,6 +303,7 @@
 </head>
 <body>
 <canvas id="particles"></canvas>
+<div id="custom-scrollbar"><div class="thumb" id="scrollbar-thumb"></div></div>
 <nav>
   <span class="brand"><img src="/favicon.ico" alt="">sigma <span class="fire">hideout</span></span>
   <ul>
@@ -329,6 +362,40 @@
 <script src="/particles.js?v=2"></script>
 <script>
   document.getElementById('footer-year').textContent = new Date().getFullYear();
+
+  // Custom themed overlay scrollbar
+  const scrollTrack = document.getElementById('custom-scrollbar');
+  const scrollThumb = document.getElementById('scrollbar-thumb');
+  let hideTimeout;
+
+  function updateScrollThumb() {
+    const trackHeight = scrollTrack.clientHeight;
+    const scrollHeight = document.documentElement.scrollHeight;
+    const viewportHeight = window.innerHeight;
+
+    if (scrollHeight <= viewportHeight) {
+      scrollThumb.style.display = 'none';
+      return;
+    }
+    scrollThumb.style.display = 'block';
+
+    const thumbHeight = Math.max((viewportHeight / scrollHeight) * trackHeight, 30);
+    const maxScroll = scrollHeight - viewportHeight;
+    const scrollFraction = window.scrollY / maxScroll;
+    const thumbTop = scrollFraction * (trackHeight - thumbHeight);
+
+    scrollThumb.style.height = thumbHeight + 'px';
+    scrollThumb.style.top = thumbTop + 'px';
+  }
+
+  window.addEventListener('scroll', () => {
+    updateScrollThumb();
+    scrollThumb.classList.add('scrolling');
+    clearTimeout(hideTimeout);
+    hideTimeout = setTimeout(() => scrollThumb.classList.remove('scrolling'), 500);
+  });
+  window.addEventListener('resize', updateScrollThumb);
+  updateScrollThumb();
 
   function updatePanelBounds() {
     const nav = document.querySelector('nav');
