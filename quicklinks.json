@@ -1,0 +1,18 @@
+{
+  "links": [
+    {
+      "title": "Ragdoll's Channel",
+      "sub": "YouTube",
+      "url": "https://www.youtube.com/@Ragdulls",
+      "icon": "https://unavatar.io/youtube/Ragdulls",
+      "preview": "https://unavatar.io/youtube/Ragdulls"
+    },
+    {
+      "title": "Portfolios",
+      "sub": "sigmahideout.de",
+      "url": "https://sigmahideout.de/portfolios/",
+      "icon": "https://www.google.com/s2/favicons?domain=sigmahideout.de&sz=128",
+      "preview": "https://www.google.com/s2/favicons?domain=sigmahideout.de&sz=256"
+    }
+  ]
+}
