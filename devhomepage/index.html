@@ -182,6 +182,45 @@
         padding: 0.8rem 1.3rem;
       }
     }
+    footer {
+      position: relative;
+      z-index: 2;
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      gap: 1rem;
+      padding: 2.5rem 8vw;
+      border-top: 1px solid rgba(180, 56, 56, 0.25);
+      font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
+    }
+    footer ul {
+      list-style: none;
+      display: flex;
+      gap: 2rem;
+      margin: 0;
+      padding: 0;
+    }
+    footer a {
+      color: var(--text-dim);
+      text-decoration: none;
+      font-size: 0.9rem;
+      transition: color 0.15s ease;
+    }
+    footer a:hover {
+      color: var(--ember-dim);
+    }
+    footer .copyright {
+      font-size: 0.8rem;
+      color: var(--text-dim);
+      opacity: 0.7;
+    }
+    @media (max-width: 700px) {
+      footer ul {
+        flex-wrap: wrap;
+        justify-content: center;
+        gap: 1.2rem;
+      }
+    }
     .about {
       width: 100%;
       margin: 4.5rem 0 0 0;
@@ -211,7 +250,6 @@
         flex-direction: row;
         align-items: flex-start;
         gap: 4rem;
-        margin-left: 4vw;
       }
       .about h2 {
         flex-shrink: 0;
@@ -225,16 +263,76 @@
       border-top: 1px solid rgba(180, 56, 56, 0.35);
       margin: 3rem 0 3rem auto;
     }
-    .wip {
+    .video-label {
+      font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
+      font-size: 0.85rem;
+      letter-spacing: 0.1em;
+      text-transform: uppercase;
+      color: var(--text-dim);
+      margin: 0 0 0.8rem auto;
       width: 100%;
       max-width: 900px;
+      text-align: right;
+    }
+    .video-card {
+      width: 100%;
+      max-width: 900px;
+      margin: 0 0 2rem auto;
+      display: block;
+      position: relative;
+      border: 1px solid var(--ember-dim);
+      border-radius: 18px;
+      overflow: hidden;
+      text-decoration: none;
+      background: rgba(64, 3, 3, 0.25);
+    }
+    .video-card img {
+      width: 100%;
+      display: block;
+      aspect-ratio: 16 / 9;
+      object-fit: cover;
+    }
+    .video-card .play-btn {
+      position: absolute;
+      top: 50%;
+      left: 50%;
+      transform: translate(-50%, -50%);
+      width: 68px;
+      height: 68px;
+      border-radius: 50%;
+      background: rgba(64, 3, 3, 0.75);
+      border: 2px solid var(--ember-dim);
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      transition: background 0.15s ease;
+    }
+    .video-card .play-btn::after {
+      content: '';
+      border-style: solid;
+      border-width: 12px 0 12px 20px;
+      border-color: transparent transparent transparent var(--text);
+      margin-left: 4px;
+    }
+    .video-card:hover .play-btn {
+      background: rgba(180, 56, 56, 0.85);
+    }
+    .content-row {
+      display: flex;
+      flex-direction: column;
+      gap: 1.5rem;
+      width: 100%;
+      max-width: 900px;
+      margin: 0 0 0 auto;
+    }
+    .wip {
+      width: 100%;
       display: flex;
       flex-direction: column;
       align-items: center;
       justify-content: center;
       text-align: center;
       gap: 1.2rem;
-      margin: 0 0 0 auto;
       padding: 3rem 2.5rem;
       border: 1px solid var(--ember-dim);
       border-radius: 20px;
@@ -251,12 +349,74 @@
       color: var(--text-dim);
       margin: 0;
     }
-    @media (min-width: 900px) {
-      .wip {
+    .quicklinks {
+      width: 100%;
+      display: flex;
+      flex-direction: column;
+      gap: 1.2rem;
+      padding: 2rem 2.2rem;
+      border: 1px solid var(--ember-dim);
+      border-radius: 20px;
+      background: rgba(64, 3, 3, 0.25);
+    }
+    .quicklinks h3 {
+      font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
+      font-size: 0.85rem;
+      letter-spacing: 0.1em;
+      text-transform: uppercase;
+      color: var(--text-dim);
+      margin: 0;
+    }
+    .quicklinks a {
+      display: flex;
+      align-items: center;
+      gap: 0.9rem;
+      text-decoration: none;
+      color: var(--text);
+      padding: 0.6rem 0.7rem;
+      border-radius: 12px;
+      transition: background 0.15s ease;
+    }
+    .quicklinks a:hover {
+      background: rgba(180, 56, 56, 0.2);
+    }
+    .quicklinks a img {
+      width: 40px;
+      height: 40px;
+      border-radius: 50%;
+      object-fit: cover;
+      flex-shrink: 0;
+      border: 1px solid var(--ember-dim);
+      background: var(--bg);
+    }
+    .quicklinks a .link-info {
+      display: flex;
+      flex-direction: column;
+      gap: 0.1rem;
+    }
+    .quicklinks a .link-title {
+      font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
+      font-size: 1rem;
+    }
+    .quicklinks a .link-sub {
+      font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
+      font-size: 0.8rem;
+      color: var(--text-dim);
+    }
+    @media (min-width: 700px) {
+      .content-row {
+        flex-direction: row;
+        align-items: stretch;
+      }
+      .content-row .wip {
+        flex: 2;
         flex-direction: row;
         text-align: left;
         gap: 2.5rem;
         padding: 3rem 3.5rem;
+      }
+      .content-row .quicklinks {
+        flex: 1;
       }
       .wip img {
         width: 170px;
@@ -292,16 +452,63 @@
 
   <hr class="divider">
 
-  <div class="wip">
-    <img src="/sunny3.png" alt="Confused cat mascot">
-    <div class="wip-text">
-      <div style="font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif; font-size: 0.85rem; letter-spacing: 0.1em; text-transform: uppercase; color: var(--text-dim);">Upcoming Events</div>
-      <p>Sorry! This is a work in progress!</p>
+  <div class="video-label">2026 New Years Special</div>
+  <a class="video-card" href="https://www.youtube.com/watch?v=zKxSFEK9jEE" target="_blank" rel="noopener">
+    <img src="https://img.youtube.com/vi/zKxSFEK9jEE/maxresdefault.jpg" alt="New Years Special video preview">
+    <span class="play-btn"></span>
+  </a>
+
+  <div class="video-label">2025 Anniversary Special</div>
+  <a class="video-card" href="https://www.youtube.com/watch?v=PgliZHicyzA&t=709s" target="_blank" rel="noopener">
+    <img src="https://img.youtube.com/vi/PgliZHicyzA/maxresdefault.jpg" alt="2025 Anniversary Special video preview">
+    <span class="play-btn"></span>
+  </a>
+
+  <hr class="divider">
+
+  <div class="content-row">
+    <div class="quicklinks">
+      <h3>Quick Links</h3>
+      <a href="https://www.youtube.com/@Ragdulls" target="_blank" rel="noopener">
+        <img src="https://unavatar.io/youtube/Ragdulls" alt="Ragdoll's channel">
+        <div class="link-info">
+          <span class="link-title">Ragdoll's Channel</span>
+          <span class="link-sub">YouTube</span>
+        </div>
+      </a>
+      <a href="https://sigmahideout.de/portfolios/" target="_blank" rel="noopener">
+        <img src="https://www.google.com/s2/favicons?domain=sigmahideout.de&sz=128" alt="Portfolios">
+        <div class="link-info">
+          <span class="link-title">Portfolios</span>
+          <span class="link-sub">sigmahideout.de</span>
+        </div>
+      </a>
+    </div>
+
+    <div class="wip">
+      <img src="/sunny3.png" alt="Confused cat mascot">
+      <div class="wip-text">
+        <div style="font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif; font-size: 0.85rem; letter-spacing: 0.1em; text-transform: uppercase; color: var(--text-dim);">Upcoming Events</div>
+        <p>Sorry! This is a work in progress!</p>
+      </div>
     </div>
   </div>
 </main>
 
+<footer>
+  <ul>
+    <li><a href="/home">home</a></li>
+    <li><a href="/about">about</a></li>
+    <li><a href="/gallery">gallery</a></li>
+    <li><a href="/more">more</a></li>
+  </ul>
+  <div class="copyright">&copy; <span id="footer-year"></span> Sigma Hideout. All rights reserved.</div>
+</footer>
+
 <script src="/particles.js?v=2"></script>
+<script>
+  document.getElementById('footer-year').textContent = new Date().getFullYear();
+</script>
 <script>
 (function () {
   fetch('/events.json')
