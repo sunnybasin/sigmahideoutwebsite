@@ -17,6 +17,12 @@
       "sub": "sigmahideout.de",
       "url": "https://sigmahideout.de/portfolios/",
       "icon": "/favicon.ico"
+    },
+    {
+      "title": "Media Upload Form",
+      "sub": "Google Form",
+      "url": "https://docs.google.com/forms/d/e/1FAIpQLSfbBM7Ur0CzMlDyfw7YJ7qUgfHo_MNu7_iy12cjKLLQHcPApg/viewform?usp=publish-editor/",
+      "icon": "/favicon.ico"
     }
   ]
 }
