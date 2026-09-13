@@ -25,6 +25,38 @@
       font-family: 'Georgia', 'Iowan Old Style', serif;
       overflow-x: hidden;
     }
+    /* Hide native scrollbar — replaced with a themed overlay version below */
+    html, body {
+      scrollbar-width: none;
+      -ms-overflow-style: none;
+    }
+    html::-webkit-scrollbar,
+    body::-webkit-scrollbar {
+      display: none;
+    }
+    #custom-scrollbar {
+      position: fixed;
+      top: 0;
+      right: 0;
+      bottom: 0;
+      width: 8px;
+      z-index: 999;
+      pointer-events: none;
+    }
+    #custom-scrollbar .thumb {
+      position: absolute;
+      right: 2px;
+      width: 4px;
+      border-radius: 999px;
+      background: var(--ember-dim);
+      opacity: 0.55;
+      transition: opacity 0.15s ease, width 0.15s ease;
+    }
+    #custom-scrollbar:hover .thumb,
+    #custom-scrollbar .thumb.scrolling {
+      opacity: 0.9;
+      width: 6px;
+    }
     canvas#particles {
       position: fixed;
       inset: 0;
@@ -39,6 +71,9 @@
       justify-content: space-between;
       padding: 1.4rem 8vw;
       font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
+      background: rgba(15, 12, 12, 0.78);
+      backdrop-filter: blur(8px);
+      -webkit-backdrop-filter: blur(8px);
     }
     nav .brand {
       font-family: 'Georgia', 'Iowan Old Style', serif;
@@ -71,20 +106,26 @@
     nav a:hover {
       color: var(--ember-dim);
     }
+    @media (max-width: 900px) {
+      nav {
+        flex-direction: column;
+        gap: 0.8rem;
+        padding: 1.2rem 6vw;
+      }
+      nav ul {
+        gap: 1.2rem;
+      }
+    }
     main {
       position: relative;
       z-index: 1;
       min-height: calc(100vh - 70px);
       display: flex;
       flex-direction: column;
-      align-items: center;
-      justify-content: center;
-      text-align: center;
+      align-items: flex-start;
+      justify-content: flex-start;
       padding: 4vh 8vw 8vh;
-    }
-    main img {
-      max-width: 220px;
-      margin-bottom: 1.5rem;
+      width: 100%;
     }
     .badge {
       font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
@@ -98,7 +139,7 @@
       background: rgba(255, 19, 19, 0.8);
     }
     h1 {
-      font-size: clamp(2.2rem, 7vw, 3.6rem);
+      font-size: clamp(2.2rem, 6vw, 3.2rem);
       line-height: 1.02;
       margin: 0 0 1.1rem 0;
       font-weight: 400;
@@ -116,34 +157,348 @@
     .fire {
       color: var(--ember-dim);
     }
-    @media (max-width: 700px) {
-      nav {
-        flex-direction: column;
-        gap: 0.8rem;
-        padding: 1.2rem 6vw;
+
+    /* List column (preview panel docks separately, fixed to the viewport) */
+    .portfolio-layout {
+      width: 100%;
+      margin-top: 1.8rem;
+    }
+    .portfolio-list {
+      list-style: none;
+      margin: 0;
+      padding: 0;
+      width: 100%;
+    }
+    .portfolio-list li {
+      border-bottom: 1px solid rgba(180, 56, 56, 0.3);
+    }
+    .portfolio-list a {
+      display: block;
+      padding: 1.1rem 0.8rem;
+      font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
+      font-size: 1.2rem;
+      color: var(--text);
+      text-decoration: none;
+      border: 1px solid transparent;
+      border-radius: 6px;
+      transition: color 0.25s ease, border-color 0.25s ease, background 0.25s ease;
+    }
+    .portfolio-list a:hover,
+    .portfolio-list a.active {
+      color: var(--text);
+      border-color: var(--text);
+      background: rgba(255, 255, 255, 0.03);
+    }
+
+    /* Preview docks to the full right half of the viewport, top to bottom */
+    :root {
+      --preview-w: 46vw;
+    }
+    .preview-panel {
+      display: none;
+    }
+
+    @media (min-width: 900px) {
+      main {
+        max-width: calc(100% - var(--preview-w));
       }
-      nav ul {
+      .preview-panel {
+        display: flex;
+        position: fixed;
+        right: 0;
+        width: var(--preview-w);
+        z-index: 1;
+        align-items: center;
+        justify-content: center;
+        background: transparent;
+        overflow: hidden;
+      }
+    }
+    .preview-panel .preview-layer {
+      position: absolute;
+      inset: 0;
+      width: 100%;
+      height: 100%;
+      object-fit: cover;
+      object-position: center;
+      display: block;
+      opacity: 0;
+      transition: opacity 0.6s ease;
+      -webkit-mask-image: linear-gradient(to right, transparent, black 22%);
+      mask-image: linear-gradient(to right, transparent, black 22%);
+    }
+    .preview-panel .preview-layer.loaded {
+      opacity: 1;
+    }
+    .preview-placeholder {
+      position: relative;
+      z-index: 1;
+      font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
+      font-size: 0.9rem;
+      color: var(--text-dim);
+      text-align: center;
+      padding: 2rem;
+    }
+
+    footer {
+      position: relative;
+      z-index: 2;
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      gap: 1rem;
+      padding: 2.5rem 8vw;
+      border-top: 1px solid rgba(180, 56, 56, 0.25);
+      font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
+      background: rgba(15, 12, 12, 0.82);
+      backdrop-filter: blur(8px);
+      -webkit-backdrop-filter: blur(8px);
+    }
+    footer ul {
+      list-style: none;
+      display: flex;
+      gap: 2rem;
+      margin: 0;
+      padding: 0;
+    }
+    footer a {
+      color: var(--text-dim);
+      text-decoration: none;
+      font-size: 0.9rem;
+      transition: color 0.15s ease;
+    }
+    footer a:hover {
+      color: var(--ember-dim);
+    }
+    footer .copyright {
+      font-size: 0.8rem;
+      color: var(--text-dim);
+      opacity: 0.7;
+    }
+    @media (max-width: 700px) {
+      footer ul {
+        flex-wrap: wrap;
+        justify-content: center;
         gap: 1.2rem;
       }
     }
-  </style>
+
+    .fade-in {
+      opacity: 0;
+      transform: translateY(24px);
+      transition: opacity 0.7s ease, transform 0.7s ease;
+    }
+    .fade-in.is-visible {
+      opacity: 1;
+      transform: translateY(0);
+    }
+    @media (prefers-reduced-motion: reduce) {
+      .fade-in {
+        opacity: 1;
+        transform: none;
+        transition: none;
+      }
+    }
+  <noscript>
+    <style>.fade-in { opacity: 1 !important; transform: none !important; }</style>
+  </noscript>
 </head>
 <body>
 <canvas id="particles"></canvas>
+<div id="custom-scrollbar"><div class="thumb" id="scrollbar-thumb"></div></div>
 <nav>
   <span class="brand"><img src="/favicon.ico" alt="">sigma <span class="fire">hideout</span></span>
   <ul>
     <li><a href="/home">home</a></li>
-    <li><a href="/about">about</a></li>
+    <li><a href="/events">events</a></li>
     <li><a href="/gallery">gallery</a></li>
     <li><a href="/more">more</a></li>
   </ul>
 </nav>
 <main>
-  <img src="/confused.png" alt="Confused cat">
-  <h1>whoops!</h1>
-  <p class="tagline">this page isn't done yet. come back later.</p>
+  <span class="badge fade-in">portfolios</span>
+  <h1 class="fade-in">portfolios</h1>
+  <p class="tagline fade-in">hover a name to preview, click to open.</p>
+
+  <div class="portfolio-layout fade-in">
+    <!--
+      EDIT YOUR PORTFOLIO LIST HERE.
+      Each <li> is one entry:
+        - href = where the link goes
+        - text between <a>...</a> = the name shown in the list
+      The preview on the right loads automatically from the URL — no image needed.
+      Add or remove <li> lines to add/remove portfolios.
+    -->
+    <ul class="portfolio-list">
+      <li><a href="https://sigmahideout.de/sunny-portfolio/">Sunnybasin</a></li>
+      <li><a href="https://ragdollportfoliosh.carrd.co/">Ragdulls</a></li>
+      <li><a href="https://cinnamon023portfoliosh.carrd.co/">Cin</a></li>
+      <li><a href="https://ulricportfoliosh.carrd.co/">Ulric</a></li>
+      <li><a href="https://thereelpyroportfoliosh.carrd.co/">Pyro</a></li>
+      <li><a href="https://elenaaa2732portfoliosh.carrd.co/">Elena</a></li>
+      <li><a href="https://jeanportfoliosh.carrd.co/">Jean</a></li>
+      <li><a href="https://mimtalityportfoliosh.carrd.co/">Mimtality</a></li>
+      <li><a href="https://geosport321123.carrd.co/">Geo</a></li>
+      <li><a href="https://reltech.click///">Reloaded</a></li>
+    </ul>
+  </div>
 </main>
+
+<!-- Lives outside any fade-in/transformed container so `position: fixed` anchors to the real viewport -->
+<div class="preview-panel" id="preview-panel">
+  <div class="preview-placeholder" id="preview-placeholder">hover a name to preview it here</div>
+  <img id="preview-img-a" class="preview-layer" alt="Portfolio preview">
+  <img id="preview-img-b" class="preview-layer" alt="Portfolio preview">
+</div>
+
+<footer class="fade-in">
+  <ul>
+    <li><a href="/home">home</a></li>
+    <li><a href="/events">events</a></li>
+    <li><a href="/gallery">gallery</a></li>
+    <li><a href="/more">more</a></li>
+  </ul>
+  <div class="copyright">&copy; <span id="footer-year"></span> Sigma Hideout. All rights reserved.</div>
+</footer>
+
 <script src="/particles.js?v=2"></script>
+<script>
+  document.getElementById('footer-year').textContent = new Date().getFullYear();
+
+  // Custom themed overlay scrollbar
+  const scrollTrack = document.getElementById('custom-scrollbar');
+  const scrollThumb = document.getElementById('scrollbar-thumb');
+  let hideTimeout;
+
+  function updateScrollThumb() {
+    const trackHeight = scrollTrack.clientHeight;
+    const scrollHeight = document.documentElement.scrollHeight;
+    const viewportHeight = window.innerHeight;
+
+    if (scrollHeight <= viewportHeight) {
+      scrollThumb.style.display = 'none';
+      return;
+    }
+    scrollThumb.style.display = 'block';
+
+    const thumbHeight = Math.max((viewportHeight / scrollHeight) * trackHeight, 30);
+    const maxScroll = scrollHeight - viewportHeight;
+    const scrollFraction = window.scrollY / maxScroll;
+    const thumbTop = scrollFraction * (trackHeight - thumbHeight);
+
+    scrollThumb.style.height = thumbHeight + 'px';
+    scrollThumb.style.top = thumbTop + 'px';
+  }
+
+  window.addEventListener('scroll', () => {
+    updateScrollThumb();
+    scrollThumb.classList.add('scrolling');
+    clearTimeout(hideTimeout);
+    hideTimeout = setTimeout(() => scrollThumb.classList.remove('scrolling'), 500);
+  });
+  window.addEventListener('resize', updateScrollThumb);
+  updateScrollThumb();
+
+  // Preview panel: its top/bottom edges track the nav's and footer's actual
+  // on-screen position, so the panel itself never renders behind them at all.
+  // Nav/footer are semi-transparent, revealing only the particle canvas behind —
+  // never the panel — because the panel has already receded before reaching them.
+  const previewPanel = document.getElementById('preview-panel');
+
+  function updatePanelLayout() {
+    if (!previewPanel || window.innerWidth < 900) return;
+
+    const nav = document.querySelector('nav');
+    const footer = document.querySelector('footer');
+    const navRect = nav.getBoundingClientRect();
+    const footerRect = footer.getBoundingClientRect();
+
+    const topGap = Math.max(0, navRect.bottom);
+    const bottomGap = Math.max(0, window.innerHeight - footerRect.top);
+
+    previewPanel.style.top = topGap + 'px';
+    previewPanel.style.bottom = bottomGap + 'px';
+  }
+
+  let panelTicking = false;
+  function onScrollOrResize() {
+    if (panelTicking) return;
+    panelTicking = true;
+    requestAnimationFrame(() => {
+      updatePanelLayout();
+      panelTicking = false;
+    });
+  }
+  window.addEventListener('scroll', onScrollOrResize);
+  window.addEventListener('resize', onScrollOrResize);
+  window.addEventListener('load', updatePanelLayout);
+  updatePanelLayout();
+
+  const observer = new IntersectionObserver((entries) => {
+    entries.forEach(entry => {
+      if (entry.isIntersecting) {
+        entry.target.classList.add('is-visible');
+        observer.unobserve(entry.target);
+      }
+    });
+  }, { threshold: 0, rootMargin: '0px 0px 0px 0px' });
+
+  document.querySelectorAll('.fade-in').forEach(el => observer.observe(el));
+
+  // Safety net: if anything is still hidden after a moment (e.g. observer edge case,
+  // very short viewport, etc.), just reveal it. Nothing should stay invisible forever.
+  setTimeout(() => {
+    document.querySelectorAll('.fade-in:not(.is-visible)').forEach(el => el.classList.add('is-visible'));
+  }, 1500);
+
+  // Screenshot preview on hover, with a true crossfade between layers
+  // (iframes get blocked by most portfolio hosts, e.g. Carrd, so we use screenshots)
+  const links = document.querySelectorAll('.portfolio-list a');
+  const layerA = document.getElementById('preview-img-a');
+  const layerB = document.getElementById('preview-img-b');
+  const placeholder = document.getElementById('preview-placeholder');
+  let activeLayer = layerA;
+  let inactiveLayer = layerB;
+  let currentUrl = null;
+  let requestToken = 0;
+
+  function showPreview(link) {
+    const targetUrl = link.getAttribute('href');
+    const screenshotUrl = 'https://s.wordpress.com/mshots/v1/' + encodeURIComponent(targetUrl) + '?w=1400';
+
+    links.forEach(l => l.classList.remove('active'));
+    link.classList.add('active');
+
+    if (currentUrl === targetUrl) return;
+    currentUrl = targetUrl;
+    const myToken = ++requestToken;
+
+    placeholder.style.display = 'none';
+
+    const loader = new Image();
+    loader.onload = () => {
+      if (myToken !== requestToken) return; // a newer hover already took over
+
+      // load into the currently-hidden layer, then swap which layer is on top
+      inactiveLayer.src = screenshotUrl;
+      inactiveLayer.classList.add('loaded');
+      activeLayer.classList.remove('loaded');
+
+      const temp = activeLayer;
+      activeLayer = inactiveLayer;
+      inactiveLayer = temp;
+    };
+    loader.src = screenshotUrl;
+  }
+
+  links.forEach(link => {
+    link.addEventListener('mouseenter', () => showPreview(link));
+  });
+
+  // Show the first portfolio by default so the panel is never empty
+  if (links.length > 0) {
+    showPreview(links[0]);
+  }
+</script>
 </body>
 </html>
