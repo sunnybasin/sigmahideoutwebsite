@@ -123,11 +123,8 @@
       color: var(--ember-dim);
     }
 
-    /* Two-column layout: list + live preview */
+    /* List column (preview panel docks separately, fixed to the viewport) */
     .portfolio-layout {
-      display: flex;
-      flex-direction: column;
-      gap: 2rem;
       width: 100%;
       margin-top: 1.8rem;
     }
@@ -136,7 +133,6 @@
       margin: 0;
       padding: 0;
       width: 100%;
-      flex-shrink: 0;
     }
     .portfolio-list li {
       border-bottom: 1px solid rgba(180, 56, 56, 0.3);
@@ -159,16 +155,32 @@
       background: rgba(255, 255, 255, 0.03);
     }
 
+    /* Preview docks to the full right half of the viewport, top to bottom */
+    :root {
+      --preview-w: 46vw;
+    }
     .preview-panel {
-      width: 100%;
-      min-height: 320px;
-      border-radius: 10px;
-      overflow: hidden;
-      background: var(--bg-warm);
-      display: flex;
-      align-items: center;
-      justify-content: center;
-      position: relative;
+      display: none;
+    }
+
+    @media (min-width: 900px) {
+      main {
+        max-width: calc(100% - var(--preview-w));
+      }
+      .preview-panel {
+        display: flex;
+        position: fixed;
+        top: 0;
+        right: 0;
+        bottom: 0;
+        width: var(--preview-w);
+        z-index: 1;
+        align-items: center;
+        justify-content: center;
+        background: linear-gradient(180deg, var(--bg), var(--bg-warm) 60%);
+        overflow: hidden;
+        border-left: 1px solid rgba(180, 56, 56, 0.25);
+      }
     }
     .preview-panel .preview-layer {
       position: absolute;
@@ -176,7 +188,7 @@
       width: 100%;
       height: 100%;
       object-fit: cover;
-      object-position: top;
+      object-position: center;
       display: block;
       opacity: 0;
       transition: opacity 0.6s ease;
@@ -194,20 +206,6 @@
       color: var(--text-dim);
       text-align: center;
       padding: 2rem;
-    }
-
-    @media (min-width: 900px) {
-      .portfolio-layout {
-        flex-direction: row;
-        align-items: stretch;
-      }
-      .portfolio-list {
-        width: 300px;
-      }
-      .preview-panel {
-        flex: 1;
-        min-height: 560px;
-      }
     }
 
     footer {
@@ -266,7 +264,9 @@
         transition: none;
       }
     }
-  </style>
+  <noscript>
+    <style>.fade-in { opacity: 1 !important; transform: none !important; }</style>
+  </noscript>
 </head>
 <body>
 <canvas id="particles"></canvas>
@@ -285,12 +285,18 @@
   <p class="tagline fade-in">hover a name to preview, click to open.</p>
 
   <div class="portfolio-layout fade-in">
+    <div class="preview-panel" id="preview-panel">
+      <div class="preview-placeholder" id="preview-placeholder">hover a name to preview it here</div>
+      <img id="preview-img-a" class="preview-layer" alt="Portfolio preview">
+      <img id="preview-img-b" class="preview-layer" alt="Portfolio preview">
+    </div>
+
     <!--
       EDIT YOUR PORTFOLIO LIST HERE.
       Each <li> is one entry:
         - href = where the link goes
         - text between <a>...</a> = the name shown in the list
-      The live preview on the right loads automatically from the URL — no image needed.
+      The preview on the right loads automatically from the URL — no image needed.
       Add or remove <li> lines to add/remove portfolios.
     -->
     <ul class="portfolio-list">
@@ -305,12 +311,6 @@
       <li><a href="https://geosport321123.carrd.co/">Geo</a></li>
       <li><a href="https://reltech.click///">Reloaded</a></li>
     </ul>
-
-    <div class="preview-panel" id="preview-panel">
-      <div class="preview-placeholder" id="preview-placeholder">hover a name to preview it here</div>
-      <img id="preview-img-a" class="preview-layer" alt="Portfolio preview">
-      <img id="preview-img-b" class="preview-layer" alt="Portfolio preview">
-    </div>
   </div>
 </main>
 
@@ -335,9 +335,15 @@
         observer.unobserve(entry.target);
       }
     });
-  }, { threshold: 0.15, rootMargin: '0px 0px -50px 0px' });
+  }, { threshold: 0, rootMargin: '0px 0px 0px 0px' });
 
   document.querySelectorAll('.fade-in').forEach(el => observer.observe(el));
+
+  // Safety net: if anything is still hidden after a moment (e.g. observer edge case,
+  // very short viewport, etc.), just reveal it. Nothing should stay invisible forever.
+  setTimeout(() => {
+    document.querySelectorAll('.fade-in:not(.is-visible)').forEach(el => el.classList.add('is-visible'));
+  }, 1500);
 
   // Screenshot preview on hover, with a true crossfade between layers
   // (iframes get blocked by most portfolio hosts, e.g. Carrd, so we use screenshots)
@@ -350,36 +356,43 @@
   let currentUrl = null;
   let requestToken = 0;
 
-  links.forEach(link => {
+  function showPreview(link) {
     const targetUrl = link.getAttribute('href');
     const screenshotUrl = 'https://s.wordpress.com/mshots/v1/' + encodeURIComponent(targetUrl) + '?w=1400';
 
-    link.addEventListener('mouseenter', () => {
-      links.forEach(l => l.classList.remove('active'));
-      link.classList.add('active');
+    links.forEach(l => l.classList.remove('active'));
+    link.classList.add('active');
 
-      if (currentUrl === targetUrl) return;
-      currentUrl = targetUrl;
-      const myToken = ++requestToken;
+    if (currentUrl === targetUrl) return;
+    currentUrl = targetUrl;
+    const myToken = ++requestToken;
 
-      placeholder.style.display = 'none';
+    placeholder.style.display = 'none';
 
-      const loader = new Image();
-      loader.onload = () => {
-        if (myToken !== requestToken) return; // a newer hover already took over
+    const loader = new Image();
+    loader.onload = () => {
+      if (myToken !== requestToken) return; // a newer hover already took over
 
-        // load into the currently-hidden layer, then swap which layer is on top
-        inactiveLayer.src = screenshotUrl;
-        inactiveLayer.classList.add('loaded');
-        activeLayer.classList.remove('loaded');
+      // load into the currently-hidden layer, then swap which layer is on top
+      inactiveLayer.src = screenshotUrl;
+      inactiveLayer.classList.add('loaded');
+      activeLayer.classList.remove('loaded');
 
-        const temp = activeLayer;
-        activeLayer = inactiveLayer;
-        inactiveLayer = temp;
-      };
-      loader.src = screenshotUrl;
-    });
+      const temp = activeLayer;
+      activeLayer = inactiveLayer;
+      inactiveLayer = temp;
+    };
+    loader.src = screenshotUrl;
+  }
+
+  links.forEach(link => {
+    link.addEventListener('mouseenter', () => showPreview(link));
   });
+
+  // Show the first portfolio by default so the panel is never empty
+  if (links.length > 0) {
+    showPreview(links[0]);
+  }
 </script>
 </body>
 </html>
