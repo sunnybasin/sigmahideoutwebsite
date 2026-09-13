@@ -405,14 +405,13 @@
 
     const nav = document.querySelector('nav');
     const footer = document.querySelector('footer');
-    const navH = nav.offsetHeight;
-    const footerH = footer.offsetHeight;
+    const navRect = nav.getBoundingClientRect();
+    const footerRect = footer.getBoundingClientRect();
 
-    const scrollY = window.scrollY;
-    const maxScroll = Math.max(document.documentElement.scrollHeight - window.innerHeight, 0);
-
-    const topGap = Math.max(0, navH - scrollY);
-    const bottomGap = Math.max(0, footerH - (maxScroll - scrollY));
+    // How much of the nav is still showing at the top of the screen right now,
+    // and how much of the footer is already showing at the bottom right now.
+    const topGap = Math.max(0, navRect.bottom);
+    const bottomGap = Math.max(0, window.innerHeight - footerRect.top);
 
     previewPanel.style.top = topGap + 'px';
     previewPanel.style.bottom = bottomGap + 'px';
@@ -445,6 +444,7 @@
   }
   window.addEventListener('scroll', onScrollOrResize);
   window.addEventListener('resize', onScrollOrResize);
+  window.addEventListener('load', updatePanelLayout);
   updatePanelLayout();
 
   const observer = new IntersectionObserver((entries) => {
