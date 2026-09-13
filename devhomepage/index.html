@@ -268,15 +268,13 @@
       letter-spacing: 0.1em;
       text-transform: uppercase;
       color: var(--text-dim);
-      margin: 0 0 0.8rem auto;
+      margin: 0 0 0.8rem 0;
       width: 100%;
-      max-width: 900px;
-      text-align: right;
+      text-align: left;
     }
     .video-card {
       width: 100%;
-      max-width: 900px;
-      margin: 0 0 2rem auto;
+      margin: 0 0 2rem 0;
       display: block;
       position: relative;
       aspect-ratio: 16 / 9;
@@ -326,8 +324,7 @@
       flex-direction: column;
       gap: 1.5rem;
       width: 100%;
-      max-width: 900px;
-      margin: 0 0 0 auto;
+      margin: 0;
     }
     .wip {
       width: 100%;
@@ -380,11 +377,12 @@
       padding: 0.6rem 0.7rem;
       border-radius: 12px;
       transition: background 0.15s ease;
+      position: relative;
     }
     .quicklinks a:hover {
       background: rgba(180, 56, 56, 0.2);
     }
-    .quicklinks a img {
+    .quicklinks a img.link-icon {
       width: 40px;
       height: 40px;
       border-radius: 50%;
@@ -406,6 +404,42 @@
       font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
       font-size: 0.8rem;
       color: var(--text-dim);
+    }
+    .link-preview {
+      position: absolute;
+      left: calc(100% + 0.8rem);
+      top: 50%;
+      transform: translateY(-50%) scale(0.96);
+      width: 150px;
+      padding: 0.7rem;
+      background: var(--bg-warm);
+      border: 1px solid var(--ember-dim);
+      border-radius: 12px;
+      box-shadow: 0 10px 30px rgba(0,0,0,0.5);
+      opacity: 0;
+      pointer-events: none;
+      transition: opacity 0.15s ease, transform 0.15s ease;
+      z-index: 10;
+    }
+    .link-preview img {
+      width: 100%;
+      border-radius: 8px;
+      display: block;
+    }
+    .quicklinks a:hover .link-preview {
+      opacity: 1;
+      transform: translateY(-50%) scale(1);
+    }
+    @media (max-width: 1000px) {
+      .link-preview {
+        left: auto;
+        right: 0;
+        top: calc(100% + 0.5rem);
+        transform: none;
+      }
+      .quicklinks a:hover .link-preview {
+        transform: none;
+      }
     }
     @media (min-width: 700px) {
       .content-row {
@@ -458,35 +492,21 @@
 
   <div class="video-label">2026 New Years Special</div>
   <div class="video-card" data-video-id="zKxSFEK9jEE">
-    <img src="https://img.youtube.com/vi/zKxSFEK9jEE/maxresdefault.jpg" alt="2026 New Years Special video preview">
+    <img src="https://img.youtube.com/vi/zKxSFEK9jEE/maxresdefault.jpg" alt="2026 New Years Special video preview" onerror="this.onerror=null;this.src='https://img.youtube.com/vi/zKxSFEK9jEE/hqdefault.jpg';">
     <span class="play-btn"></span>
   </div>
 
   <div class="video-label">2025 Anniversary Special</div>
-  <div class="video-card" data-video-id="PgliZHicyzA" data-start="709">
-    <img src="https://img.youtube.com/vi/PgliZHicyzA/maxresdefault.jpg" alt="2025 Anniversary Special video preview">
+  <div class="video-card" data-video-id="PgliZHicyzA">
+    <img src="https://img.youtube.com/vi/PgliZHicyzA/maxresdefault.jpg" alt="2025 Anniversary Special video preview" onerror="this.onerror=null;this.src='https://img.youtube.com/vi/PgliZHicyzA/hqdefault.jpg';">
     <span class="play-btn"></span>
   </div>
 
   <hr class="divider">
 
   <div class="content-row">
-    <div class="quicklinks">
+    <div class="quicklinks" id="quicklinks-container">
       <h3>Quick Links</h3>
-      <a href="https://www.youtube.com/@Ragdulls" target="_blank" rel="noopener">
-        <img src="https://unavatar.io/youtube/Ragdulls" alt="Ragdoll's channel">
-        <div class="link-info">
-          <span class="link-title">Ragdoll's Channel</span>
-          <span class="link-sub">YouTube</span>
-        </div>
-      </a>
-      <a href="https://sigmahideout.de/portfolios/" target="_blank" rel="noopener">
-        <img src="https://www.google.com/s2/favicons?domain=sigmahideout.de&sz=128" alt="Portfolios">
-        <div class="link-info">
-          <span class="link-title">Portfolios</span>
-          <span class="link-sub">sigmahideout.de</span>
-        </div>
-      </a>
     </div>
 
     <div class="wip">
@@ -512,6 +532,30 @@
 <script src="/particles.js?v=2"></script>
 <script>
   document.getElementById('footer-year').textContent = new Date().getFullYear();
+
+  fetch('/quicklinks.json')
+    .then(res => res.json())
+    .then(data => {
+      const container = document.getElementById('quicklinks-container');
+      (data.links || []).forEach(link => {
+        const a = document.createElement('a');
+        a.href = link.url;
+        a.target = '_blank';
+        a.rel = 'noopener';
+        a.innerHTML = `
+          <img class="link-icon" src="${link.icon}" alt="${link.title}">
+          <div class="link-info">
+            <span class="link-title">${link.title}</span>
+            <span class="link-sub">${link.sub || ''}</span>
+          </div>
+          <div class="link-preview">
+            <img src="${link.preview || link.icon}" alt="${link.title} preview">
+          </div>
+        `;
+        container.appendChild(a);
+      });
+    })
+    .catch(err => console.error('Could not load quicklinks.json:', err));
 
   document.querySelectorAll('.video-card').forEach(card => {
     card.addEventListener('click', function () {
