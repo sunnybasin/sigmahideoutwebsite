@@ -256,6 +256,39 @@
         padding-top: 0.2rem;
       }
     }
+    .about.about-right {
+      flex-direction: column;
+    }
+    @media (min-width: 900px) {
+      .about.about-right {
+        flex-direction: row-reverse;
+      }
+      .about.about-right h2 {
+        text-align: right;
+      }
+      .about.about-right p {
+        flex: 1;
+        text-align: right;
+        max-width: none;
+        margin-left: auto;
+      }
+    }
+    .fade-in {
+      opacity: 0;
+      transform: translateY(24px);
+      transition: opacity 0.7s ease, transform 0.7s ease;
+    }
+    .fade-in.is-visible {
+      opacity: 1;
+      transform: translateY(0);
+    }
+    @media (prefers-reduced-motion: reduce) {
+      .fade-in {
+        opacity: 1;
+        transform: none;
+        transition: none;
+      }
+    }
     .divider {
       width: 100%;
       border: none;
@@ -486,30 +519,30 @@
 </nav>
 
 <main>
-  <h1>We are <span class="fire">Sigma Hideout</span></h1>
-  <section class="about">
+  <h1 class="fade-in">We are <span class="fire">Sigma Hideout</span></h1>
+  <section class="about fade-in">
     <h2>About <span class="fire">Us</span></h2>
     <p>Founded in 2024 by Ragdoll &amp; Yohl, Sigma Hideout has grown from a small group of friends into a server with over 100 members.</p>
   </section>
 
-  <hr class="divider">
+  <hr class="divider fade-in">
 
-  <div class="video-label">2026 New Years Special</div>
-  <div class="video-card" data-video-id="zKxSFEK9jEE">
+  <div class="video-label fade-in">2026 New Years Special</div>
+  <div class="video-card fade-in" data-video-id="zKxSFEK9jEE">
     <img src="/new-years-special.jpg" alt="2026 New Years Special video preview">
     <span class="play-btn"></span>
   </div>
 
-  <div class="video-label">2025 Anniversary Special</div>
-  <div class="video-card" data-video-id="PgliZHicyzA">
+  <div class="video-label fade-in">2025 Anniversary Special</div>
+  <div class="video-card fade-in" data-video-id="PgliZHicyzA">
     <img src="https://img.youtube.com/vi/PgliZHicyzA/maxresdefault.jpg" alt="2025 Anniversary Special video preview"
          onerror="const t=['sddefault','hqdefault','mqdefault','default'];let i=0;this.onerror=function(){i++;if(i<t.length){this.src='https://img.youtube.com/vi/PgliZHicyzA/'+t[i]+'.jpg';}else{this.onerror=null;}};this.src='https://img.youtube.com/vi/PgliZHicyzA/'+t[0]+'.jpg';">
     <span class="play-btn"></span>
   </div>
 
-  <hr class="divider">
+  <hr class="divider fade-in">
 
-  <div class="content-row">
+  <div class="content-row fade-in">
     <div class="quicklinks" id="quicklinks-container">
       <h3>Quick Links</h3>
     </div>
@@ -524,7 +557,7 @@
   </div>
 </main>
 
-<footer>
+<footer class="fade-in">
   <ul>
     <li><a href="/home">home</a></li>
     <li><a href="/about">about</a></li>
@@ -537,6 +570,17 @@
 <script src="/particles.js?v=2"></script>
 <script>
   document.getElementById('footer-year').textContent = new Date().getFullYear();
+
+  const observer = new IntersectionObserver((entries) => {
+    entries.forEach(entry => {
+      if (entry.isIntersecting) {
+        entry.target.classList.add('is-visible');
+        observer.unobserve(entry.target);
+      }
+    });
+  }, { threshold: 0.15, rootMargin: '0px 0px -50px 0px' });
+
+  document.querySelectorAll('.fade-in').forEach(el => observer.observe(el));
 
   fetch('/quicklinks.json')
     .then(res => res.json())
