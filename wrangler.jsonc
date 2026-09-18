@@ -5,7 +5,8 @@
   "main": "worker.js",
   "assets": {
     "directory": ".",
-    "binding": "ASSETS"
+    "binding": "ASSETS",
+    "run_worker_first": ["/api/*", "/uploads/*"]
   },
   "r2_buckets": [
     {
