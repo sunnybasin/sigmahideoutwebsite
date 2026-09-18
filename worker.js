@@ -54,7 +54,7 @@ async function getUsedBytes(env) {
   let total = 0;
   let cursor;
   do {
-    const page = await env.GALLERY_BUCKET.list({ cursor });
+    const page = await env.sigma_gallery.list({ cursor });
     cursor = page.truncated ? page.cursor : undefined;
     for (const obj of page.objects) total += obj.size;
   } while (cursor);
@@ -131,7 +131,7 @@ async function handleUpload(request, env) {
     const ext = extFromMime(file.type);
     const objectKey = `uploads/${id}${ext}`;
 
-    await env.GALLERY_BUCKET.put(objectKey, await file.arrayBuffer(), {
+    await env.sigma_gallery.put(objectKey, await file.arrayBuffer(), {
       httpMetadata: { contentType: file.type }
     });
     await adjustUsedBytes(env, file.size);
@@ -157,7 +157,7 @@ async function handleUpload(request, env) {
 
 async function handleServeFile(pathname, env) {
   const objectKey = pathname.replace(/^\//, ''); // "uploads/<id>.<ext>"
-  const object = await env.GALLERY_BUCKET.get(objectKey);
+  const object = await env.sigma_gallery.get(objectKey);
   if (!object) return new Response('Not found', { status: 404 });
 
   const headers = new Headers();
@@ -183,7 +183,7 @@ async function handleDelete(request, id, env) {
   if (!raw) return jsonResponse({ error: 'Not found' }, 404);
 
   const entry = JSON.parse(raw);
-  await env.GALLERY_BUCKET.delete(entry.objectKey);
+  await env.sigma_gallery.delete(entry.objectKey);
   await env.GALLERY_KV.delete(key);
   if (typeof entry.size === 'number') {
     await adjustUsedBytes(env, -entry.size);
