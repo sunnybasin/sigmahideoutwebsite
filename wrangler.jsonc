@@ -15,8 +15,8 @@
   ],
   "kv_namespaces": [
     {
-      "binding": "GALLERY_KV",
-      "id": "940547dcdaff4cb68a2c9ad78b9a3f32"
+      "binding": "GALLERY_R2",
+      "id": "REPLACE_WITH_YOUR_KV_NAMESPACE_ID"
     }
   ]
 }
