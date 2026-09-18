@@ -168,7 +168,16 @@ async function handleServeFile(pathname, env) {
   return new Response(object.body, { headers });
 }
 
-async function handleDelete(id, env) {
+function checkAdminPassword(request, env) {
+  const provided = request.headers.get('X-Admin-Password') || '';
+  return Boolean(env.ADMIN_PASSWORD) && provided === env.ADMIN_PASSWORD;
+}
+
+async function handleDelete(request, id, env) {
+  if (!checkAdminPassword(request, env)) {
+    return jsonResponse({ error: 'Incorrect password.' }, 401);
+  }
+
   const key = ITEM_PREFIX + id;
   const raw = await env.GALLERY_KV.get(key);
   if (!raw) return jsonResponse({ error: 'Not found' }, 404);
@@ -197,9 +206,13 @@ export default {
         return await handleUpload(request, env);
       }
 
+      if (pathname === '/api/admin/verify' && request.method === 'POST') {
+        return jsonResponse({ ok: checkAdminPassword(request, env) }, checkAdminPassword(request, env) ? 200 : 401);
+      }
+
       if (pathname.startsWith('/api/gallery/') && request.method === 'DELETE') {
         const id = pathname.split('/').pop();
-        return await handleDelete(id, env);
+        return await handleDelete(request, id, env);
       }
 
       if (pathname.startsWith('/uploads/') && request.method === 'GET') {
