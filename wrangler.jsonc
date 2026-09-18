@@ -9,13 +9,13 @@
   },
   "r2_buckets": [
     {
-      "binding": "GALLERY_BUCKET",
+      "binding": "sigma_gallery",
       "bucket_name": "sigma-gallery"
     }
   ],
   "kv_namespaces": [
     {
-      "binding": "GALLERY_R2",
+      "binding": "GALLERY_KV",
       "id": "REPLACE_WITH_YOUR_KV_NAMESPACE_ID"
     }
   ]
