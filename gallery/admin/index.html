@@ -1,0 +1,362 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Sigma Hideout — Gallery Admin</title>
+  <link rel="icon" href="/favicon.ico" type="image/x-icon">
+  <meta name="robots" content="noindex, nofollow">
+  <style>
+    :root {
+      --bg: #0f0c0c;
+      --bg-warm: #000000;
+      --ember: #400303;
+      --ember-dim: #b43838;
+      --teal: #3c5a52;
+      --text: #ecd9d9;
+      --text-dim: #918787;
+      --card-bg: rgba(255, 255, 255, 0.03);
+      --card-border: rgba(180, 56, 56, 0.25);
+    }
+    * { box-sizing: border-box; }
+    html, body {
+      margin: 0;
+      padding: 0;
+      height: 100%;
+      background: radial-gradient(ellipse at 50% 20%, var(--bg-warm), var(--bg) 70%);
+      color: var(--text);
+      font-family: 'Georgia', 'Iowan Old Style', serif;
+      overflow-x: hidden;
+      scrollbar-width: thin;
+      scrollbar-color: var(--ember-dim) var(--bg);
+    }
+    ::-webkit-scrollbar { width: 12px; }
+    ::-webkit-scrollbar-track { background: var(--bg); }
+    ::-webkit-scrollbar-thumb { background: var(--ember); border: 2px solid var(--bg); border-radius: 999px; }
+    ::-webkit-scrollbar-thumb:hover { background: var(--ember-dim); }
+    canvas#particles {
+      position: fixed;
+      inset: 0;
+      z-index: 0;
+      display: block;
+    }
+    nav {
+      position: relative;
+      z-index: 2;
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      padding: 1.4rem 8vw;
+      font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
+    }
+    nav .brand {
+      font-family: 'Georgia', 'Iowan Old Style', serif;
+      font-size: 1.15rem;
+      color: var(--text);
+      display: flex;
+      align-items: center;
+      gap: 0.6rem;
+    }
+    nav .brand img { width: 24px; height: 24px; }
+    nav .brand .fire { color: var(--ember-dim); }
+    main {
+      position: relative;
+      z-index: 1;
+      min-height: calc(100vh - 70px);
+      display: flex;
+      flex-direction: column;
+      align-items: flex-start;
+      padding: 6vh 8vw 10vh;
+      width: 100%;
+      margin: 0 auto;
+    }
+    h1 {
+      font-size: clamp(2.2rem, 6vw, 3.2rem);
+      line-height: 1.02;
+      margin: 0 0 0.6rem 0;
+      font-weight: 400;
+      color: var(--text);
+      text-shadow: 0 0 40px rgba(255, 19, 19, 0.8);
+    }
+    .fire { color: var(--ember-dim); }
+    p.tagline {
+      font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
+      font-size: 1rem;
+      line-height: 1.6;
+      color: var(--text-dim);
+      max-width: 46ch;
+      margin: 0 0 2rem 0;
+    }
+
+    /* ---- Login gate ---- */
+    .login-panel {
+      width: 100%;
+      max-width: 380px;
+      font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
+      background: var(--card-bg);
+      border: 1px solid var(--card-border);
+      border-radius: 16px;
+      padding: 2rem;
+    }
+    .login-panel label {
+      display: block;
+      font-size: 0.85rem;
+      color: var(--text-dim);
+      margin-bottom: 0.5rem;
+    }
+    .login-panel input[type="password"] {
+      width: 100%;
+      background: rgba(255,255,255,0.04);
+      border: 1px solid var(--card-border);
+      color: var(--text);
+      padding: 0.7rem 0.9rem;
+      border-radius: 8px;
+      font-size: 0.95rem;
+      font-family: inherit;
+      margin-bottom: 1rem;
+    }
+    button.submit-btn {
+      background: var(--ember-dim);
+      color: #1a0d0d;
+      border: none;
+      padding: 0.7rem 1.4rem;
+      border-radius: 8px;
+      font-size: 0.9rem;
+      font-weight: 600;
+      cursor: pointer;
+      transition: filter 0.15s ease;
+      width: 100%;
+    }
+    button.submit-btn:hover { filter: brightness(1.1); }
+    button.submit-btn:disabled { opacity: 0.5; cursor: not-allowed; }
+    .login-error {
+      color: #e07a7a;
+      font-size: 0.85rem;
+      margin-top: 0.8rem;
+      min-height: 1.2em;
+      font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
+    }
+
+    /* ---- Admin grid ---- */
+    #adminArea { display: none; width: 100%; }
+    #adminArea.visible { display: block; }
+    .status-bar {
+      font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
+      font-size: 0.85rem;
+      color: var(--text-dim);
+      margin-bottom: 1.2rem;
+      min-height: 1.2em;
+    }
+    .status-bar.success { color: #8fc9a8; }
+    .status-bar.error { color: #e07a7a; }
+    .admin-grid {
+      width: 100%;
+      display: grid;
+      grid-template-columns: repeat(auto-fill, minmax(220px, 1fr));
+      gap: 1rem;
+    }
+    .a-item {
+      position: relative;
+      border-radius: 10px;
+      overflow: hidden;
+      background: var(--card-bg);
+      border: 1px solid var(--card-border);
+      aspect-ratio: 4 / 3;
+    }
+    .a-item img, .a-item video {
+      width: 100%;
+      height: 100%;
+      object-fit: cover;
+      display: block;
+    }
+    .a-item .cap {
+      position: absolute;
+      left: 0; right: 0; bottom: 0;
+      padding: 0.5rem 0.6rem;
+      font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
+      font-size: 0.72rem;
+      color: #fff;
+      background: linear-gradient(to top, rgba(0,0,0,0.8), transparent 70%);
+    }
+    .a-item .delete-btn {
+      position: absolute;
+      top: 0.5rem; right: 0.5rem;
+      background: rgba(180, 20, 20, 0.85);
+      color: #fff;
+      border: none;
+      border-radius: 999px;
+      width: 30px;
+      height: 30px;
+      font-size: 0.9rem;
+      cursor: pointer;
+      font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
+      transition: background 0.15s ease;
+    }
+    .a-item .delete-btn:hover { background: rgba(220, 30, 30, 0.95); }
+    .a-item .delete-btn:disabled { opacity: 0.5; cursor: not-allowed; }
+    .a-item.deleting { opacity: 0.4; }
+    .empty-state {
+      color: var(--text-dim);
+      font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
+      font-size: 0.9rem;
+      padding: 2rem 0;
+    }
+    .back-link {
+      font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
+      display: inline-flex;
+      color: var(--text-dim);
+      text-decoration: none;
+      font-size: 0.9rem;
+      margin-bottom: 1.5rem;
+      transition: color 0.15s ease;
+    }
+    .back-link:hover { color: var(--ember-dim); }
+  </style>
+</head>
+<body>
+<canvas id="particles"></canvas>
+
+<nav>
+  <span class="brand"><img src="/favicon.ico" alt="">sigma <span class="fire">hideout</span></span>
+</nav>
+
+<main>
+  <div id="loginArea">
+    <h1>Gallery <span class="fire">Admin</span></h1>
+    <p class="tagline">Enter the admin password to view and delete gallery items.</p>
+    <div class="login-panel">
+      <label for="passwordInput">Password</label>
+      <input type="password" id="passwordInput" autocomplete="current-password">
+      <button class="submit-btn" id="loginBtn">Log in</button>
+      <div class="login-error" id="loginError"></div>
+    </div>
+  </div>
+
+  <div id="adminArea">
+    <a href="/gallery" class="back-link">&larr; back to the gallery</a>
+    <h1>Gallery <span class="fire">Admin</span></h1>
+    <p class="tagline">Click the &times; on anything you want to remove. This can't be undone.</p>
+    <div class="status-bar" id="statusBar"></div>
+    <div class="admin-grid" id="adminGrid"></div>
+    <div class="empty-state" id="emptyState" style="display:none;">Nothing in the gallery yet.</div>
+  </div>
+</main>
+
+<script src="/particles.js?v=2"></script>
+<script>
+(function () {
+  const loginArea = document.getElementById('loginArea');
+  const adminArea = document.getElementById('adminArea');
+  const passwordInput = document.getElementById('passwordInput');
+  const loginBtn = document.getElementById('loginBtn');
+  const loginError = document.getElementById('loginError');
+  const statusBar = document.getElementById('statusBar');
+  const adminGrid = document.getElementById('adminGrid');
+  const emptyState = document.getElementById('emptyState');
+
+  let adminPassword = '';
+
+  function setStatus(msg, kind) {
+    statusBar.textContent = msg || '';
+    statusBar.className = 'status-bar' + (kind ? ' ' + kind : '');
+  }
+
+  function escapeHtml(str) {
+    const div = document.createElement('div');
+    div.textContent = str;
+    return div.innerHTML;
+  }
+
+  async function tryLogin() {
+    const value = passwordInput.value;
+    if (!value) return;
+
+    loginBtn.disabled = true;
+    loginError.textContent = '';
+
+    try {
+      const res = await fetch('/api/admin/verify', {
+        method: 'POST',
+        headers: { 'X-Admin-Password': value }
+      });
+      if (!res.ok) {
+        loginError.textContent = 'Incorrect password.';
+        loginBtn.disabled = false;
+        return;
+      }
+
+      adminPassword = value;
+      loginArea.style.display = 'none';
+      adminArea.classList.add('visible');
+      loadGallery();
+    } catch (err) {
+      loginError.textContent = 'Could not verify password. Try again.';
+      loginBtn.disabled = false;
+    }
+  }
+
+  loginBtn.addEventListener('click', tryLogin);
+  passwordInput.addEventListener('keydown', e => {
+    if (e.key === 'Enter') tryLogin();
+  });
+
+  async function loadGallery() {
+    try {
+      const res = await fetch('/api/gallery');
+      const items = await res.json();
+
+      adminGrid.innerHTML = '';
+      emptyState.style.display = items.length ? 'none' : 'block';
+
+      items.forEach(item => {
+        const el = document.createElement('div');
+        el.className = 'a-item';
+        el.dataset.id = item.id;
+
+        const media = item.type === 'video'
+          ? `<video src="${item.url}" muted></video>`
+          : `<img src="${item.url}" alt="${escapeHtml(item.caption || '')}" loading="lazy">`;
+        const capText = [item.uploader, item.caption].filter(Boolean).join(' — ');
+
+        el.innerHTML = `
+          ${media}
+          <button class="delete-btn" title="Delete">&times;</button>
+          ${capText ? `<span class="cap">${escapeHtml(capText)}</span>` : ''}
+        `;
+
+        el.querySelector('.delete-btn').addEventListener('click', () => deleteItem(item.id, el));
+        adminGrid.appendChild(el);
+      });
+    } catch (err) {
+      setStatus('Could not load the gallery. Try refreshing.', 'error');
+    }
+  }
+
+  async function deleteItem(id, el) {
+    if (!confirm('Delete this item? This cannot be undone.')) return;
+
+    el.classList.add('deleting');
+    el.querySelector('.delete-btn').disabled = true;
+    setStatus('Deleting...');
+
+    try {
+      const res = await fetch(`/api/gallery/${id}`, {
+        method: 'DELETE',
+        headers: { 'X-Admin-Password': adminPassword }
+      });
+      const data = await res.json();
+      if (!res.ok) throw new Error(data.error || 'Delete failed.');
+
+      el.remove();
+      setStatus('Deleted.', 'success');
+      if (adminGrid.children.length === 0) emptyState.style.display = 'block';
+    } catch (err) {
+      el.classList.remove('deleting');
+      el.querySelector('.delete-btn').disabled = false;
+      setStatus(err.message || 'Something went wrong.', 'error');
+    }
+  }
+})();
+</script>
+</body>
+</html>
