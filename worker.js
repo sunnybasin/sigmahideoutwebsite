@@ -1,10 +1,14 @@
 // Sigma Hideout — gallery Worker
 //
+// Stores everything in Workers KV — no R2, no payment method required.
+// (KV's free tier needs no card on file; R2 does, even though R2 usage
+// itself would be free too. This trades that off for a 25MB-per-file cap.)
+//
 // Handles:
-//   GET    /api/gallery        -> list all uploaded items (newest first)
-//   POST   /api/upload         -> accept image/video uploads (multipart form)
-//   GET    /uploads/<filename> -> serve an uploaded file from R2
-//   DELETE /api/gallery/:id    -> remove an item (see warning in README)
+//   GET    /api/gallery       -> list all uploaded items (newest first)
+//   POST   /api/upload        -> accept image/video uploads (multipart form)
+//   GET    /uploads/<id>      -> serve an uploaded file from KV
+//   DELETE /api/gallery/:id   -> remove an item (see warning in README)
 //
 // Everything else falls through to the static site (env.ASSETS).
 
@@ -13,18 +17,10 @@ const ALLOWED_MIME = new Set([
   'video/mp4', 'video/webm', 'video/quicktime', 'video/ogg'
 ]);
 
-const MAX_FILE_SIZE = 100 * 1024 * 1024; // 100MB — adjust to fit your Cloudflare plan's request-body limit
-const KV_PREFIX = 'item:';
-
-function extFromMime(mime) {
-  const map = {
-    'image/jpeg': '.jpg', 'image/png': '.png', 'image/gif': '.gif',
-    'image/webp': '.webp', 'image/avif': '.avif',
-    'video/mp4': '.mp4', 'video/webm': '.webm',
-    'video/quicktime': '.mov', 'video/ogg': '.ogv'
-  };
-  return map[mime] || '';
-}
+// KV caps a single value at 25MB — stay comfortably under that.
+const MAX_FILE_SIZE = 24 * 1024 * 1024;
+const ITEM_PREFIX = 'item:';
+const FILE_PREFIX = 'file:';
 
 function jsonResponse(data, status = 200) {
   return new Response(JSON.stringify(data), {
@@ -37,7 +33,7 @@ async function listGallery(env) {
   const items = [];
   let cursor;
   do {
-    const page = await env.GALLERY_KV.list({ prefix: KV_PREFIX, cursor });
+    const page = await env.GALLERY_KV.list({ prefix: ITEM_PREFIX, cursor });
     cursor = page.cursor;
     const values = await Promise.all(page.keys.map(k => env.GALLERY_KV.get(k.name)));
     for (const v of values) {
@@ -75,21 +71,20 @@ async function handleUpload(request, env) {
       return jsonResponse({ error: `Unsupported file type: ${file.type || 'unknown'}` }, 400);
     }
     if (file.size > MAX_FILE_SIZE) {
-      return jsonResponse({ error: `${file.name} is too large (max 100MB).` }, 413);
+      return jsonResponse({ error: `${file.name} is too large (max 24MB per file on this setup).` }, 413);
     }
 
     const id = crypto.randomUUID();
-    const ext = extFromMime(file.type);
-    const objectKey = `uploads/${id}${ext}`;
 
-    await env.GALLERY_BUCKET.put(objectKey, await file.arrayBuffer(), {
-      httpMetadata: { contentType: file.type }
+    // Store the raw file bytes under file:<id>, with its content-type as KV metadata
+    // so serving it back later takes a single read.
+    await env.GALLERY_KV.put(FILE_PREFIX + id, await file.arrayBuffer(), {
+      metadata: { contentType: file.type }
     });
 
     const entry = {
       id,
-      objectKey,
-      url: `/${objectKey}`,
+      url: `/uploads/${id}`,
       type: file.type.startsWith('video') ? 'video' : 'image',
       mimetype: file.type,
       caption,
@@ -97,33 +92,32 @@ async function handleUpload(request, env) {
       uploadedAt: Date.now()
     };
 
-    await env.GALLERY_KV.put(KV_PREFIX + id, JSON.stringify(entry));
+    await env.GALLERY_KV.put(ITEM_PREFIX + id, JSON.stringify(entry));
     saved.push(entry);
   }
 
   return jsonResponse({ ok: true, items: saved });
 }
 
-async function handleServeFile(pathname, env) {
-  const objectKey = pathname.replace(/^\//, ''); // "uploads/<id>.<ext>"
-  const object = await env.GALLERY_BUCKET.get(objectKey);
-  if (!object) return new Response('Not found', { status: 404 });
+async function handleServeFile(id, env) {
+  const result = await env.GALLERY_KV.getWithMetadata(FILE_PREFIX + id, 'arrayBuffer');
+  if (!result || !result.value) return new Response('Not found', { status: 404 });
 
-  const headers = new Headers();
-  object.writeHttpMetadata(headers);
-  headers.set('etag', object.httpEtag);
-  headers.set('Cache-Control', 'public, max-age=604800'); // 7 days
-
-  return new Response(object.body, { headers });
+  const contentType = (result.metadata && result.metadata.contentType) || 'application/octet-stream';
+  return new Response(result.value, {
+    headers: {
+      'Content-Type': contentType,
+      'Cache-Control': 'public, max-age=604800' // 7 days
+    }
+  });
 }
 
 async function handleDelete(id, env) {
-  const key = KV_PREFIX + id;
+  const key = ITEM_PREFIX + id;
   const raw = await env.GALLERY_KV.get(key);
   if (!raw) return jsonResponse({ error: 'Not found' }, 404);
 
-  const entry = JSON.parse(raw);
-  await env.GALLERY_BUCKET.delete(entry.objectKey);
+  await env.GALLERY_KV.delete(FILE_PREFIX + id);
   await env.GALLERY_KV.delete(key);
   return jsonResponse({ ok: true });
 }
@@ -149,7 +143,8 @@ export default {
       }
 
       if (pathname.startsWith('/uploads/') && request.method === 'GET') {
-        return await handleServeFile(pathname, env);
+        const id = pathname.split('/').pop();
+        return await handleServeFile(id, env);
       }
     } catch (err) {
       return jsonResponse({ error: 'Server error: ' + err.message }, 500);
