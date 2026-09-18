@@ -335,6 +335,7 @@
   <section class="upload-panel fade-in">
     <div class="drop-zone" id="dropZone">
       <strong>Click to choose files</strong> or drag &amp; drop images / videos here
+      <div style="font-size: 0.78rem; margin-top: 0.4rem; opacity: 0.75;">Max 25MB per file</div>
       <div class="pending-list" id="pendingList"></div>
     </div>
     <input type="file" id="fileInput" accept="image/*,video/*" multiple>
@@ -402,13 +403,25 @@
     submitBtn.disabled = pendingFiles.length === 0;
   }
 
+  const MAX_FILE_SIZE = 25 * 1024 * 1024; // keep in sync with worker.js
+
   function addFiles(fileListLike) {
-    const files = Array.from(fileListLike).filter(f =>
+    const incoming = Array.from(fileListLike).filter(f =>
       f.type.startsWith('image/') || f.type.startsWith('video/')
     );
-    pendingFiles = pendingFiles.concat(files);
+
+    const tooBig = incoming.filter(f => f.size > MAX_FILE_SIZE);
+    const okFiles = incoming.filter(f => f.size <= MAX_FILE_SIZE);
+
+    pendingFiles = pendingFiles.concat(okFiles);
     renderPending();
-    setStatus('');
+
+    if (tooBig.length > 0) {
+      const names = tooBig.map(f => f.name).join(', ');
+      setStatus(`Skipped (over 25MB): ${names}`, 'error');
+    } else {
+      setStatus('');
+    }
   }
 
   dropZone.addEventListener('click', () => fileInput.click());
