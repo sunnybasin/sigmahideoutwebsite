@@ -1,0 +1,462 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Sigma Hideout — Upload</title>
+  <link rel="icon" href="/favicon.ico" type="image/x-icon">
+
+  <!-- Link preview tags (Discord, iMessage, Twitter, etc.) -->
+  <meta property="og:title" content="Sigma Hideout — Upload">
+  <meta property="og:description" content="Add your photos and clips to the Sigma Hideout gallery.">
+  <meta property="og:image" content="https://sigmahideout.de/preview.jpg">
+  <meta property="og:url" content="https://sigmahideout.de/gallery/upload">
+  <meta property="og:type" content="website">
+
+  <meta name="twitter:card" content="summary_large_image">
+  <meta name="twitter:title" content="Sigma Hideout — Upload">
+  <meta name="twitter:description" content="Add your photos and clips to the Sigma Hideout gallery.">
+  <meta name="twitter:image" content="https://sigmahideout.de/preview.jpg">
+  <style>
+    :root {
+      --bg: #0f0c0c;
+      --bg-warm: #000000;
+      --ember: #400303;
+      --ember-dim: #b43838;
+      --teal: #3c5a52;
+      --text: #ecd9d9;
+      --text-dim: #918787;
+      --card-bg: rgba(255, 255, 255, 0.03);
+      --card-border: rgba(180, 56, 56, 0.25);
+    }
+    * { box-sizing: border-box; }
+    html, body {
+      margin: 0;
+      padding: 0;
+      height: 100%;
+      background: radial-gradient(ellipse at 50% 20%, var(--bg-warm), var(--bg) 70%);
+      color: var(--text);
+      font-family: 'Georgia', 'Iowan Old Style', serif;
+      overflow-x: hidden;
+      scrollbar-width: thin;
+      scrollbar-color: var(--ember-dim) var(--bg);
+    }
+    ::-webkit-scrollbar {
+      width: 12px;
+    }
+    ::-webkit-scrollbar-track {
+      background: var(--bg);
+    }
+    ::-webkit-scrollbar-thumb {
+      background: var(--ember);
+      border: 2px solid var(--bg);
+      border-radius: 999px;
+    }
+    ::-webkit-scrollbar-thumb:hover {
+      background: var(--ember-dim);
+    }
+    canvas#particles {
+      position: fixed;
+      inset: 0;
+      z-index: 0;
+      display: block;
+    }
+    nav {
+      position: relative;
+      z-index: 2;
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      padding: 1.4rem 8vw;
+      font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
+    }
+    nav .brand {
+      font-family: 'Georgia', 'Iowan Old Style', serif;
+      font-size: 1.15rem;
+      color: var(--text);
+      display: flex;
+      align-items: center;
+      gap: 0.6rem;
+    }
+    nav .brand img {
+      width: 24px;
+      height: 24px;
+    }
+    nav .brand .fire {
+      color: var(--ember-dim);
+    }
+    nav ul {
+      list-style: none;
+      display: flex;
+      gap: 2rem;
+      margin: 0;
+      padding: 0;
+    }
+    nav a {
+      color: var(--text-dim);
+      text-decoration: none;
+      font-size: 0.95rem;
+      transition: color 0.15s ease;
+    }
+    nav a:hover {
+      color: var(--ember-dim);
+    }
+    main {
+      position: relative;
+      z-index: 1;
+      min-height: calc(100vh - 70px);
+      display: flex;
+      flex-direction: column;
+      align-items: flex-start;
+      justify-content: flex-start;
+      text-align: left;
+      padding: 6vh 8vw 10vh;
+      width: 100%;
+      margin: 0 auto;
+      max-width: 800px;
+    }
+    .badge {
+      font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
+      font-size: 0.72rem;
+      letter-spacing: 0.02em;
+      color: var(--text);
+      border: 1px solid var(--ember-dim);
+      padding: 0.25rem 0.7rem;
+      border-radius: 999px;
+      margin-bottom: 1.6rem;
+      background: rgba(255, 19, 19, 0.8);
+    }
+    h1 {
+      font-size: clamp(3.2rem, 9vw, 6rem);
+      line-height: 1.02;
+      margin: 0 0 1.1rem 0;
+      font-weight: 400;
+      color: var(--text);
+      text-shadow: 0 0 40px rgba(255, 19, 19, 0.8);
+    }
+    p.tagline {
+      font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
+      font-size: 1.05rem;
+      line-height: 1.6;
+      color: var(--text-dim);
+      max-width: 46ch;
+      margin: 0 0 2.2rem 0;
+    }
+    .fire {
+      color: var(--ember-dim);
+    }
+    footer {
+      position: relative;
+      z-index: 2;
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      gap: 1rem;
+      padding: 2.5rem 8vw;
+      border-top: 1px solid rgba(180, 56, 56, 0.25);
+      font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
+    }
+    footer ul {
+      list-style: none;
+      display: flex;
+      gap: 2rem;
+      margin: 0;
+      padding: 0;
+    }
+    footer a {
+      color: var(--text-dim);
+      text-decoration: none;
+      font-size: 0.9rem;
+      transition: color 0.15s ease;
+    }
+    footer a:hover {
+      color: var(--ember-dim);
+    }
+    footer .copyright {
+      font-size: 0.8rem;
+      color: var(--text-dim);
+      opacity: 0.7;
+    }
+    @media (max-width: 700px) {
+      footer ul {
+        flex-wrap: wrap;
+        justify-content: center;
+        gap: 1.2rem;
+      }
+    }
+    .fade-in {
+      opacity: 0;
+      transform: translateY(24px);
+      transition: opacity 0.7s ease, transform 0.7s ease;
+    }
+    .fade-in.is-visible {
+      opacity: 1;
+      transform: translateY(0);
+    }
+    @media (prefers-reduced-motion: reduce) {
+      .fade-in {
+        opacity: 1;
+        transform: none;
+        transition: none;
+      }
+    }
+    .divider {
+      width: 100%;
+      border: none;
+      border-top: 1px solid rgba(180, 56, 56, 0.35);
+      margin: 3rem 0;
+    }
+
+    /* ---- Upload panel ---- */
+    .upload-panel {
+      width: 100%;
+      font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
+      background: var(--card-bg);
+      border: 1px solid var(--card-border);
+      border-radius: 20px;
+      padding: 2rem;
+    }
+    .drop-zone {
+      border: 1.5px dashed rgba(180, 56, 56, 0.4);
+      border-radius: 12px;
+      padding: 3rem 1.5rem;
+      text-align: center;
+      color: var(--text-dim);
+      cursor: pointer;
+      transition: border-color 0.15s ease, background 0.15s ease;
+    }
+    .drop-zone.dragover {
+      border-color: var(--ember-dim);
+      background: rgba(180, 56, 56, 0.08);
+    }
+    .drop-zone strong { color: var(--text); }
+    .upload-panel input[type="file"] { display: none; }
+    .upload-row {
+      display: flex;
+      gap: 0.8rem;
+      margin-top: 1.2rem;
+      flex-wrap: wrap;
+    }
+    .upload-row input[type="text"] {
+      flex: 1;
+      min-width: 160px;
+      background: rgba(255,255,255,0.04);
+      border: 1px solid var(--card-border);
+      color: var(--text);
+      padding: 0.7rem 0.9rem;
+      border-radius: 8px;
+      font-size: 0.9rem;
+      font-family: inherit;
+    }
+    .upload-row input[type="text"]::placeholder { color: var(--text-dim); }
+    button.submit-btn {
+      background: var(--ember-dim);
+      color: #1a0d0d;
+      border: none;
+      padding: 0.7rem 1.6rem;
+      border-radius: 8px;
+      font-size: 0.9rem;
+      font-weight: 600;
+      cursor: pointer;
+      transition: filter 0.15s ease;
+    }
+    button.submit-btn:hover { filter: brightness(1.1); }
+    button.submit-btn:disabled { opacity: 0.5; cursor: not-allowed; }
+    .status-line {
+      margin-top: 1rem;
+      font-size: 0.88rem;
+      color: var(--text-dim);
+      min-height: 1.2em;
+    }
+    .status-line.error { color: #e07a7a; }
+    .status-line.success { color: #8fc9a8; }
+    .pending-list {
+      display: flex;
+      flex-wrap: wrap;
+      gap: 0.5rem;
+      margin-top: 1rem;
+    }
+    .pending-chip {
+      background: rgba(255,255,255,0.05);
+      border: 1px solid var(--card-border);
+      border-radius: 6px;
+      padding: 0.25rem 0.6rem;
+      font-size: 0.78rem;
+      color: var(--text-dim);
+    }
+    .back-link {
+      font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
+      display: inline-flex;
+      align-items: center;
+      gap: 0.4rem;
+      color: var(--text-dim);
+      text-decoration: none;
+      font-size: 0.9rem;
+      margin-top: 1.5rem;
+      transition: color 0.15s ease;
+    }
+    .back-link:hover { color: var(--ember-dim); }
+
+    @media (max-width: 700px) {
+      nav {
+        flex-direction: column;
+        gap: 0.8rem;
+        padding: 1.2rem 6vw;
+      }
+      nav ul {
+        gap: 1.2rem;
+      }
+    }
+  </style>
+</head>
+<body>
+<canvas id="particles"></canvas>
+
+<nav>
+  <span class="brand"><img src="/favicon.ico" alt="">sigma <span class="fire">hideout</span></span>
+  <ul>
+    <li><a href="/home">home</a></li>
+    <li><a href="/events">events</a></li>
+    <li><a href="/gallery">gallery</a></li>
+    <li><a href="/more">more</a></li>
+  </ul>
+</nav>
+
+<main>
+  <span class="badge fade-in">add to the gallery</span>
+  <h1 class="fade-in">Upload <span class="fire">something</span></h1>
+  <p class="tagline fade-in">
+    Drop your photos and clips below. Once uploaded, they'll show up in
+    the gallery for everyone to see.
+  </p>
+
+  <hr class="divider fade-in">
+
+  <section class="upload-panel fade-in">
+    <div class="drop-zone" id="dropZone">
+      <strong>Click to choose files</strong> or drag &amp; drop images / videos here
+      <div class="pending-list" id="pendingList"></div>
+    </div>
+    <input type="file" id="fileInput" accept="image/*,video/*" multiple>
+    <div class="upload-row">
+      <input type="text" id="uploaderInput" placeholder="Your name (optional)" maxlength="40">
+      <input type="text" id="captionInput" placeholder="Caption (optional)" maxlength="200">
+      <button class="submit-btn" id="submitBtn" disabled>Upload</button>
+    </div>
+    <div class="status-line" id="statusLine"></div>
+  </section>
+
+  <a href="/gallery" class="back-link fade-in">&larr; back to the gallery</a>
+</main>
+
+<footer class="fade-in">
+  <ul>
+    <li><a href="/home">home</a></li>
+    <li><a href="/events">events</a></li>
+    <li><a href="/gallery">gallery</a></li>
+    <li><a href="/more">more</a></li>
+  </ul>
+  <div class="copyright">&copy; <span id="footer-year"></span> Sigma Hideout. All rights reserved.</div>
+</footer>
+
+<script src="/particles.js?v=2"></script>
+<script>
+  document.getElementById('footer-year').textContent = new Date().getFullYear();
+
+  const observer = new IntersectionObserver((entries) => {
+    entries.forEach(entry => {
+      if (entry.isIntersecting) {
+        entry.target.classList.add('is-visible');
+        observer.unobserve(entry.target);
+      }
+    });
+  }, { threshold: 0.15, rootMargin: '0px 0px -50px 0px' });
+
+  document.querySelectorAll('.fade-in').forEach(el => observer.observe(el));
+</script>
+<script>
+(function () {
+  const dropZone = document.getElementById('dropZone');
+  const fileInput = document.getElementById('fileInput');
+  const pendingList = document.getElementById('pendingList');
+  const submitBtn = document.getElementById('submitBtn');
+  const statusLine = document.getElementById('statusLine');
+  const uploaderInput = document.getElementById('uploaderInput');
+  const captionInput = document.getElementById('captionInput');
+
+  let pendingFiles = [];
+
+  function setStatus(msg, kind) {
+    statusLine.textContent = msg || '';
+    statusLine.className = 'status-line' + (kind ? ' ' + kind : '');
+  }
+
+  function renderPending() {
+    pendingList.innerHTML = '';
+    pendingFiles.forEach((f) => {
+      const chip = document.createElement('span');
+      chip.className = 'pending-chip';
+      chip.textContent = f.name;
+      pendingList.appendChild(chip);
+    });
+    submitBtn.disabled = pendingFiles.length === 0;
+  }
+
+  function addFiles(fileListLike) {
+    const files = Array.from(fileListLike).filter(f =>
+      f.type.startsWith('image/') || f.type.startsWith('video/')
+    );
+    pendingFiles = pendingFiles.concat(files);
+    renderPending();
+    setStatus('');
+  }
+
+  dropZone.addEventListener('click', () => fileInput.click());
+  fileInput.addEventListener('change', () => addFiles(fileInput.files));
+
+  ['dragenter', 'dragover'].forEach(evt =>
+    dropZone.addEventListener(evt, e => {
+      e.preventDefault();
+      dropZone.classList.add('dragover');
+    })
+  );
+  ['dragleave', 'drop'].forEach(evt =>
+    dropZone.addEventListener(evt, e => {
+      e.preventDefault();
+      dropZone.classList.remove('dragover');
+    })
+  );
+  dropZone.addEventListener('drop', e => {
+    if (e.dataTransfer && e.dataTransfer.files) addFiles(e.dataTransfer.files);
+  });
+
+  submitBtn.addEventListener('click', async () => {
+    if (pendingFiles.length === 0) return;
+    submitBtn.disabled = true;
+    setStatus('Uploading...');
+
+    const formData = new FormData();
+    pendingFiles.forEach(f => formData.append('media', f));
+    formData.append('uploader', uploaderInput.value.trim());
+    formData.append('caption', captionInput.value.trim());
+
+    try {
+      const res = await fetch('/api/upload', { method: 'POST', body: formData });
+      const data = await res.json();
+      if (!res.ok) throw new Error(data.error || 'Upload failed.');
+
+      setStatus(`Uploaded ${data.items.length} file(s). Redirecting to the gallery...`, 'success');
+      pendingFiles = [];
+      fileInput.value = '';
+      captionInput.value = '';
+      renderPending();
+      setTimeout(() => { window.location.href = '/gallery'; }, 900);
+    } catch (err) {
+      setStatus(err.message || 'Something went wrong.', 'error');
+      submitBtn.disabled = false;
+    }
+  });
+})();
+</script>
+</body>
+</html>
