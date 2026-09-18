@@ -17,7 +17,7 @@ const ALLOWED_MIME = new Set([
   'video/mp4', 'video/webm', 'video/quicktime', 'video/ogg'
 ]);
 
-const MAX_FILE_SIZE = 100 * 1024 * 1024; // 100MB per file — adjust to fit your Workers plan's request-body limit
+const MAX_FILE_SIZE = 25 * 1024 * 1024; // 25MB per file
 
 // Hard cap on total storage used across the whole bucket. 15GB = 5GB past
 // R2's 10GB free tier, i.e. ~$0.075/month max at R2's $0.015/GB/month rate.
