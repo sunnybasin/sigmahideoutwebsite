@@ -110,6 +110,13 @@
     .nav-login-btn:hover {
       filter: brightness(1.1);
     }
+    .nav-avatar {
+      width: 32px;
+      height: 32px;
+      border-radius: 50%;
+      display: block;
+      border: 1px solid var(--ember-dim);
+    }
     nav ul {
       list-style: none;
       display: flex;
@@ -616,9 +623,17 @@
   if (!el) return;
   fetch('/api/auth/me').then(r => r.json()).then(data => {
     if (data.loggedIn) {
-      const name = document.createElement('div');
-      name.textContent = data.username;
-      el.textContent = 'Logged in as ' + name.textContent;
+      el.innerHTML = '';
+      if (data.avatar) {
+        const img = document.createElement('img');
+        img.src = data.avatar;
+        img.alt = data.username;
+        img.title = data.username;
+        img.className = 'nav-avatar';
+        el.appendChild(img);
+      } else {
+        el.textContent = data.username;
+      }
     } else {
       el.innerHTML = '<a href="/api/auth/login" class="nav-login-btn">Log in with Discord</a>';
     }
