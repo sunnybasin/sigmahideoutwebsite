@@ -8,14 +8,14 @@
 
   <!-- Link preview tags (Discord, iMessage, Twitter, etc.) -->
   <meta property="og:title" content="Sigma Hideout — Gallery">
-  <meta property="og:description" content="Photos and clips shared by the Sigma Hideout">
+  <meta property="og:description" content="Photos and clips shared by the Sigma Hideout crew.">
   <meta property="og:image" content="https://sigmahideout.de/preview.jpg">
   <meta property="og:url" content="https://sigmahideout.de/gallery">
   <meta property="og:type" content="website">
 
   <meta name="twitter:card" content="summary_large_image">
   <meta name="twitter:title" content="Sigma Hideout — Gallery">
-  <meta name="twitter:description" content="Photos and clips shared by the Sigma Hideout">
+  <meta name="twitter:description" content="Photos and clips shared by the Sigma Hideout crew.">
   <meta name="twitter:image" content="https://sigmahideout.de/preview.jpg">
   <style>
     :root {
@@ -232,25 +232,69 @@
     }
     .upload-link:hover { filter: brightness(1.1); }
 
-    /* ---- Gallery grid ---- */
+    /* ---- Search bar ---- */
+    .search-row {
+      width: 100%;
+      margin: 1.6rem 0 0.4rem 0;
+    }
+    .search-row input {
+      width: 100%;
+      max-width: 420px;
+      font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
+      background: var(--card-bg);
+      border: 1px solid var(--card-border);
+      color: var(--text);
+      padding: 0.65rem 1rem;
+      border-radius: 999px;
+      font-size: 0.9rem;
+    }
+    .search-row input::placeholder { color: var(--text-dim); }
+    .search-row input:focus {
+      outline: none;
+      border-color: var(--ember-dim);
+    }
+
+    /* ---- Month sections ---- */
+    .month-section {
+      width: 100%;
+      margin-top: 2.4rem;
+    }
+    .month-heading {
+      font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
+      font-size: 0.8rem;
+      letter-spacing: 0.1em;
+      text-transform: uppercase;
+      color: var(--text-dim);
+      margin: 0 0 0.9rem 0;
+      padding-bottom: 0.6rem;
+      border-bottom: 1px solid rgba(180, 56, 56, 0.2);
+    }
+
+    /* ---- Gallery masonry grid ---- */
     .gallery-grid {
       width: 100%;
-      display: grid;
-      grid-template-columns: repeat(auto-fill, minmax(220px, 1fr));
-      gap: 1rem;
+      column-count: 1;
+      column-gap: 1rem;
     }
+    @media (min-width: 520px)  { .gallery-grid { column-count: 2; } }
+    @media (min-width: 820px)  { .gallery-grid { column-count: 3; } }
+    @media (min-width: 1150px) { .gallery-grid { column-count: 4; } }
     .g-item {
       position: relative;
       border-radius: 10px;
       overflow: hidden;
       background: var(--card-bg);
       border: 1px solid var(--card-border);
-      aspect-ratio: 4 / 3;
       cursor: pointer;
+      break-inside: avoid;
+      margin-bottom: 1rem;
+      display: inline-block;
+      width: 100%;
     }
     .g-item img, .g-item video {
       width: 100%;
-      height: 100%;
+      height: auto;
+      max-height: 520px;
       object-fit: cover;
       display: block;
     }
@@ -340,19 +384,21 @@
   <span class="badge fade-in">shared gallery</span>
   <h1 class="fade-in">The <span class="fire">Gallery</span></h1>
   <p class="tagline fade-in">
-    Photos and clips shared by SH. Everything here is visible to everyone in SH.
+    Photos and clips shared by the crew. Everything here is visible to everyone in the hideout.
   </p>
 
   <hr class="divider fade-in">
 
   <div class="gallery-top fade-in">
-    <span></span>
+    <span id="loginStatus" style="font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif; font-size: 0.85rem; color: var(--text-dim);"></span>
     <a href="/gallery/upload" class="upload-link">+ Upload something</a>
   </div>
 
-  <div style="height: 1.5rem;"></div>
+  <div class="search-row fade-in">
+    <input type="text" id="searchInput" placeholder="Search by caption or name...">
+  </div>
 
-  <div class="gallery-grid fade-in" id="galleryGrid"></div>
+  <div id="galleryContainer" class="fade-in" style="width: 100%;"></div>
   <div class="empty-state fade-in" id="emptyState" style="display:none;">
     Nothing here yet — <a href="/gallery/upload" style="color: var(--ember-dim);">be the first to post something</a>.
   </div>
@@ -390,11 +436,14 @@
 </script>
 <script>
 (function () {
-  const galleryGrid = document.getElementById('galleryGrid');
+  const galleryContainer = document.getElementById('galleryContainer');
   const emptyState = document.getElementById('emptyState');
+  const searchInput = document.getElementById('searchInput');
   const lightbox = document.getElementById('lightbox');
   const lightboxContent = document.getElementById('lightboxContent');
   const lightboxClose = document.getElementById('lightboxClose');
+
+  let allItems = [];
 
   function escapeHtml(str) {
     const div = document.createElement('div');
@@ -419,36 +468,102 @@
     }
   });
 
+  function monthKey(timestamp) {
+    const d = new Date(timestamp);
+    return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}`;
+  }
+  function monthLabel(timestamp) {
+    return new Date(timestamp).toLocaleDateString(undefined, { month: 'long', year: 'numeric' });
+  }
+
+  function buildItemEl(item) {
+    const el = document.createElement('div');
+    el.className = 'g-item';
+    const media = item.type === 'video'
+      ? `<video src="${item.url}" muted></video>`
+      : `<img src="${item.url}" alt="${escapeHtml(item.caption || '')}" loading="lazy">`;
+    const capText = [item.uploader, item.caption].filter(Boolean).join(' — ');
+    el.innerHTML = `
+      ${media}
+      <span class="type-tag">${item.type}</span>
+      ${capText ? `<span class="cap">${escapeHtml(capText)}</span>` : ''}
+    `;
+    el.addEventListener('click', () => openLightbox(item));
+    return el;
+  }
+
+  function render() {
+    const query = searchInput.value.trim().toLowerCase();
+    const filtered = query
+      ? allItems.filter(item => {
+          const haystack = `${item.caption || ''} ${item.uploader || ''}`.toLowerCase();
+          return haystack.includes(query);
+        })
+      : allItems;
+
+    galleryContainer.innerHTML = '';
+    emptyState.style.display = filtered.length ? 'none' : 'block';
+    emptyState.textContent = query
+      ? 'No matches for that search.'
+      : 'Nothing here yet — be the first to post something.';
+
+    // Items already come sorted newest-first from the API; group while preserving that order.
+    const groups = new Map(); // monthKey -> { label, items: [] }
+    filtered.forEach(item => {
+      const key = monthKey(item.uploadedAt);
+      if (!groups.has(key)) groups.set(key, { label: monthLabel(item.uploadedAt), items: [] });
+      groups.get(key).items.push(item);
+    });
+
+    groups.forEach(group => {
+      const section = document.createElement('section');
+      section.className = 'month-section';
+
+      const heading = document.createElement('h2');
+      heading.className = 'month-heading';
+      heading.textContent = group.label;
+      section.appendChild(heading);
+
+      const grid = document.createElement('div');
+      grid.className = 'gallery-grid';
+      group.items.forEach(item => grid.appendChild(buildItemEl(item)));
+      section.appendChild(grid);
+
+      galleryContainer.appendChild(section);
+    });
+  }
+
+  searchInput.addEventListener('input', render);
+
   async function loadGallery() {
     try {
       const res = await fetch('/api/gallery');
-      const items = await res.json();
-
-      galleryGrid.innerHTML = '';
-      emptyState.style.display = items.length ? 'none' : 'block';
-
-      items.forEach(item => {
-        const el = document.createElement('div');
-        el.className = 'g-item';
-        const media = item.type === 'video'
-          ? `<video src="${item.url}" muted></video>`
-          : `<img src="${item.url}" alt="${escapeHtml(item.caption || '')}" loading="lazy">`;
-        const capText = [item.uploader, item.caption].filter(Boolean).join(' — ');
-        el.innerHTML = `
-          ${media}
-          <span class="type-tag">${item.type}</span>
-          ${capText ? `<span class="cap">${escapeHtml(capText)}</span>` : ''}
-        `;
-        el.addEventListener('click', () => openLightbox(item));
-        galleryGrid.appendChild(el);
-      });
+      allItems = await res.json();
+      render();
     } catch (err) {
       emptyState.style.display = 'block';
       emptyState.textContent = 'Could not load the gallery. Try refreshing.';
     }
   }
 
+  async function loadLoginStatus() {
+    const loginStatus = document.getElementById('loginStatus');
+    try {
+      const res = await fetch('/api/auth/me');
+      const data = await res.json();
+      loginStatus.textContent = data.loggedIn
+        ? `Logged in as ${data.username}`
+        : '';
+      if (!data.loggedIn) {
+        loginStatus.innerHTML = '<a href="/api/auth/login" style="color: var(--text-dim); text-decoration: underline;">Log in with Discord</a>';
+      }
+    } catch {
+      // Non-critical — just leave the status blank if this fails.
+    }
+  }
+
   loadGallery();
+  loadLoginStatus();
 })();
 </script>
 </body>
