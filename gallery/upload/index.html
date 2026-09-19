@@ -297,6 +297,68 @@
     }
     .back-link:hover { color: var(--ember-dim); }
 
+    /* ---- Discord login ---- */
+    .login-gate {
+      width: 100%;
+      font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
+      background: var(--card-bg);
+      border: 1px solid var(--card-border);
+      border-radius: 20px;
+      padding: 2.5rem 2rem;
+      text-align: center;
+    }
+    .login-gate p {
+      color: var(--text-dim);
+      font-size: 0.95rem;
+      margin: 0 0 1.4rem 0;
+    }
+    .discord-login-btn {
+      display: inline-flex;
+      align-items: center;
+      gap: 0.6rem;
+      background: #5865F2;
+      color: #fff;
+      text-decoration: none;
+      padding: 0.75rem 1.6rem;
+      border-radius: 999px;
+      font-size: 0.9rem;
+      font-weight: 600;
+      transition: filter 0.15s ease;
+    }
+    .discord-login-btn:hover { filter: brightness(1.1); }
+    .user-badge {
+      width: 100%;
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      gap: 1rem;
+      font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
+      font-size: 0.85rem;
+      color: var(--text-dim);
+      margin-bottom: 1.2rem;
+    }
+    .user-badge .who {
+      display: flex;
+      align-items: center;
+      gap: 0.6rem;
+    }
+    .user-badge img {
+      width: 26px;
+      height: 26px;
+      border-radius: 50%;
+    }
+    .user-badge button {
+      background: none;
+      border: none;
+      color: var(--text-dim);
+      text-decoration: underline;
+      cursor: pointer;
+      font-family: inherit;
+      font-size: 0.85rem;
+      padding: 0;
+    }
+    .user-badge button:hover { color: var(--ember-dim); }
+
     @media (max-width: 700px) {
       nav {
         flex-direction: column;
@@ -332,20 +394,29 @@
 
   <hr class="divider fade-in">
 
-  <section class="upload-panel fade-in">
-    <div class="drop-zone" id="dropZone">
-      <strong>Click to choose files</strong> or drag &amp; drop images / videos here
-      <div style="font-size: 0.78rem; margin-top: 0.4rem; opacity: 0.75;">Max 25MB per file</div>
-      <div class="pending-list" id="pendingList"></div>
-    </div>
-    <input type="file" id="fileInput" accept="image/*,video/*" multiple>
-    <div class="upload-row">
-      <input type="text" id="uploaderInput" placeholder="Your name (optional)" maxlength="40">
-      <input type="text" id="captionInput" placeholder="Caption (optional)" maxlength="200">
-      <button class="submit-btn" id="submitBtn" disabled>Upload</button>
-    </div>
-    <div class="status-line" id="statusLine"></div>
-  </section>
+  <div id="loginGate" class="login-gate fade-in" style="display:none;">
+    <p>You need to be logged in with Discord (and a member of the server) to upload.</p>
+    <a href="/api/auth/login" class="discord-login-btn">Log in with Discord</a>
+  </div>
+
+  <div id="uploadArea" style="display:none; width:100%;">
+    <div class="user-badge fade-in" id="userBadge"></div>
+
+    <section class="upload-panel fade-in">
+      <div class="drop-zone" id="dropZone">
+        <strong>Click to choose files</strong> or drag &amp; drop images / videos here
+        <div style="font-size: 0.78rem; margin-top: 0.4rem; opacity: 0.75;">Max 25MB per file</div>
+        <div class="pending-list" id="pendingList"></div>
+      </div>
+      <input type="file" id="fileInput" accept="image/*,video/*" multiple>
+      <div class="upload-row">
+        <input type="text" id="uploaderInput" placeholder="Your name" maxlength="40" required>
+        <input type="text" id="captionInput" placeholder="Caption" maxlength="200" required>
+        <button class="submit-btn" id="submitBtn" disabled>Upload</button>
+      </div>
+      <div class="status-line" id="statusLine"></div>
+    </section>
+  </div>
 
   <a href="/gallery" class="back-link fade-in">&larr; back to the gallery</a>
 </main>
@@ -377,6 +448,9 @@
 </script>
 <script>
 (function () {
+  const loginGate = document.getElementById('loginGate');
+  const uploadArea = document.getElementById('uploadArea');
+  const userBadge = document.getElementById('userBadge');
   const dropZone = document.getElementById('dropZone');
   const fileInput = document.getElementById('fileInput');
   const pendingList = document.getElementById('pendingList');
@@ -386,6 +460,43 @@
   const captionInput = document.getElementById('captionInput');
 
   let pendingFiles = [];
+
+  async function checkAuth() {
+    try {
+      const res = await fetch('/api/auth/me');
+      const data = await res.json();
+
+      if (!data.loggedIn) {
+        loginGate.style.display = 'block';
+        uploadArea.style.display = 'none';
+        return;
+      }
+
+      loginGate.style.display = 'none';
+      uploadArea.style.display = 'block';
+
+      const avatarImg = data.avatar ? `<img src="${data.avatar}" alt="">` : '';
+      userBadge.innerHTML = `
+        <span class="who">${avatarImg}Logged in as ${escapeHtml(data.username)}</span>
+        <button id="logoutBtn">Log out</button>
+      `;
+      document.getElementById('logoutBtn').addEventListener('click', async () => {
+        await fetch('/api/auth/logout', { method: 'POST' });
+        checkAuth();
+      });
+
+      if (!uploaderInput.value) uploaderInput.value = data.username;
+    } catch {
+      loginGate.style.display = 'block';
+      uploadArea.style.display = 'none';
+    }
+  }
+
+  function escapeHtml(str) {
+    const div = document.createElement('div');
+    div.textContent = str;
+    return div.innerHTML;
+  }
 
   function setStatus(msg, kind) {
     statusLine.textContent = msg || '';
@@ -445,13 +556,24 @@
 
   submitBtn.addEventListener('click', async () => {
     if (pendingFiles.length === 0) return;
+
+    const uploaderValue = uploaderInput.value.trim();
+    const captionValue = captionInput.value.trim();
+
+    if (!uploaderValue || !captionValue) {
+      setStatus('Please fill in your name and a caption before uploading.', 'error');
+      if (!uploaderValue) uploaderInput.focus();
+      else captionInput.focus();
+      return;
+    }
+
     submitBtn.disabled = true;
     setStatus('Uploading...');
 
     const formData = new FormData();
     pendingFiles.forEach(f => formData.append('media', f));
-    formData.append('uploader', uploaderInput.value.trim());
-    formData.append('caption', captionInput.value.trim());
+    formData.append('uploader', uploaderValue);
+    formData.append('caption', captionValue);
 
     try {
       const res = await fetch('/api/upload', { method: 'POST', body: formData });
@@ -469,6 +591,8 @@
       submitBtn.disabled = false;
     }
   });
+
+  checkAuth();
 })();
 </script>
 </body>
