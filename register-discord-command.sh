@@ -10,15 +10,22 @@
 # Tradeoff: global commands can take up to an hour to show up everywhere
 # (guild-scoped ones are instant). Discord's own caching, not something
 # this script controls.
+#
+# This script reads its credentials from environment variables rather
+# than having them hardcoded, so it's safe to commit this file to your
+# repo — just don't commit the values themselves anywhere.
 
-# Fill in the two values below, or export them as env vars before running.
-
-APPLICATION_ID="REPLACE_WITH_YOUR_CLIENT_ID"
-BOT_TOKEN="REPLACE_WITH_YOUR_BOT_TOKEN"
+if [ -z "$DISCORD_APPLICATION_ID" ] || [ -z "$DISCORD_BOT_TOKEN" ]; then
+  echo "Missing environment variables. Run it like this instead:"
+  echo ""
+  echo "  DISCORD_APPLICATION_ID=your_client_id DISCORD_BOT_TOKEN=your_bot_token bash register-discord-command.sh"
+  echo ""
+  exit 1
+fi
 
 curl -X PUT \
-  "https://discord.com/api/v10/applications/${APPLICATION_ID}/commands" \
-  -H "Authorization: Bot ${BOT_TOKEN}" \
+  "https://discord.com/api/v10/applications/${DISCORD_APPLICATION_ID}/commands" \
+  -H "Authorization: Bot ${DISCORD_BOT_TOKEN}" \
   -H "Content-Type: application/json" \
   -d '[
     {
