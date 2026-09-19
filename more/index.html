@@ -55,6 +55,33 @@
     nav .brand .fire {
       color: var(--ember-dim);
     }
+    .nav-right {
+      display: flex;
+      align-items: center;
+      gap: 1.8rem;
+      flex-wrap: wrap;
+    }
+    .nav-auth {
+      font-size: 0.85rem;
+      color: var(--text-dim);
+      white-space: nowrap;
+    }
+    .nav-login-btn {
+      display: inline-flex;
+      align-items: center;
+      gap: 0.4rem;
+      background: #5865F2;
+      color: #fff;
+      text-decoration: none;
+      padding: 0.45rem 1rem;
+      border-radius: 999px;
+      font-size: 0.85rem;
+      font-weight: 600;
+      transition: filter 0.15s ease;
+    }
+    .nav-login-btn:hover {
+      filter: brightness(1.1);
+    }
     nav ul {
       list-style: none;
       display: flex;
@@ -235,12 +262,15 @@
 <canvas id="particles"></canvas>
 <nav>
   <span class="brand"><img src="/favicon.ico" alt="">sigma <span class="fire">hideout</span></span>
-  <ul>
-    <li><a href="/home">home</a></li>
-    <li><a href="/events">events</a></li>
-    <li><a href="/gallery">gallery</a></li>
-    <li><a href="/more">more</a></li>
-  </ul>
+  <div class="nav-right">
+    <ul>
+      <li><a href="/home">home</a></li>
+      <li><a href="/events">events</a></li>
+      <li><a href="/gallery">gallery</a></li>
+      <li><a href="/more">more</a></li>
+    </ul>
+    <span id="navAuth" class="nav-auth"></span>
+  </div>
 </nav>
 <main>
   <span class="badge fade-in">more</span>
@@ -261,6 +291,19 @@
 </footer>
 
 <script src="/particles.js?v=2"></script>
+<script>
+(function () {
+  const el = document.getElementById('navAuth');
+  if (!el) return;
+  fetch('/api/auth/me').then(r => r.json()).then(data => {
+    if (data.loggedIn) {
+      el.textContent = 'Logged in as ' + data.username;
+    } else {
+      el.innerHTML = '<a href="/api/auth/login" class="nav-login-btn">Log in with Discord</a>';
+    }
+  }).catch(() => {});
+})();
+</script>
 <script>
   document.getElementById('footer-year').textContent = new Date().getFullYear();
 
