@@ -410,7 +410,6 @@
       </div>
       <input type="file" id="fileInput" accept="image/*,video/*" multiple>
       <div class="upload-row">
-        <input type="text" id="uploaderInput" placeholder="Your name" maxlength="40" required>
         <input type="text" id="captionInput" placeholder="Caption" maxlength="200" required>
         <button class="submit-btn" id="submitBtn" disabled>Upload</button>
       </div>
@@ -456,7 +455,6 @@
   const pendingList = document.getElementById('pendingList');
   const submitBtn = document.getElementById('submitBtn');
   const statusLine = document.getElementById('statusLine');
-  const uploaderInput = document.getElementById('uploaderInput');
   const captionInput = document.getElementById('captionInput');
 
   let pendingFiles = [];
@@ -475,17 +473,17 @@
       loginGate.style.display = 'none';
       uploadArea.style.display = 'block';
 
-      const avatarImg = data.avatar ? `<img src="${data.avatar}" alt="">` : '';
+      const avatarImg = data.avatar
+        ? `<img src="${data.avatar}" alt="${escapeHtml(data.username)}" title="${escapeHtml(data.username)}">`
+        : `<span>${escapeHtml(data.username)}</span>`;
       userBadge.innerHTML = `
-        <span class="who">${avatarImg}Logged in as ${escapeHtml(data.username)}</span>
+        <span class="who">${avatarImg}</span>
         <button id="logoutBtn">Log out</button>
       `;
       document.getElementById('logoutBtn').addEventListener('click', async () => {
         await fetch('/api/auth/logout', { method: 'POST' });
         checkAuth();
       });
-
-      if (!uploaderInput.value) uploaderInput.value = data.username;
     } catch {
       loginGate.style.display = 'block';
       uploadArea.style.display = 'none';
@@ -557,13 +555,11 @@
   submitBtn.addEventListener('click', async () => {
     if (pendingFiles.length === 0) return;
 
-    const uploaderValue = uploaderInput.value.trim();
     const captionValue = captionInput.value.trim();
 
-    if (!uploaderValue || !captionValue) {
-      setStatus('Please fill in your name and a caption before uploading.', 'error');
-      if (!uploaderValue) uploaderInput.focus();
-      else captionInput.focus();
+    if (!captionValue) {
+      setStatus('Please add a caption before uploading.', 'error');
+      captionInput.focus();
       return;
     }
 
@@ -572,7 +568,6 @@
 
     const formData = new FormData();
     pendingFiles.forEach(f => formData.append('media', f));
-    formData.append('uploader', uploaderValue);
     formData.append('caption', captionValue);
 
     try {
