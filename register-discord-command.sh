@@ -10,7 +10,7 @@
 # Tradeoff: global commands can take up to an hour to show up everywhere
 # (guild-scoped ones are instant). Discord's own caching, not something
 # this script controls.
-#
+
 # Fill in the two values below, or export them as env vars before running.
 
 APPLICATION_ID="REPLACE_WITH_YOUR_CLIENT_ID"
