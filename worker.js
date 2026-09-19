@@ -12,8 +12,7 @@
 //   GET    /api/gallery         -> list all uploaded items (newest first)
 //   POST   /api/upload          -> accept image/video uploads (requires Discord login)
 //   GET    /uploads/<file>      -> serve an uploaded file from R2
-//   DELETE /api/gallery/:id     -> remove an item (requires admin password)
-//   POST   /api/admin/verify    -> check an admin password
+//   DELETE /api/gallery/:id     -> remove an item (requires logged-in Discord admin)
 //   GET    /api/auth/login      -> redirect to Discord OAuth2
 //   GET    /api/auth/callback   -> Discord sends the user back here after login
 //   GET    /api/auth/me         -> current session info, or { loggedIn: false }
@@ -199,7 +198,8 @@ async function handleAuthMe(request, env) {
   return jsonResponse({
     loggedIn: true,
     username: session.username,
-    avatar: session.avatar
+    avatar: session.avatar,
+    isAdmin: isAuthorizedAdmin(session.discordId, env)
   });
 }
 
@@ -275,10 +275,9 @@ async function handleUpload(request, env) {
   }
 
   const caption = (formData.get('caption') || '').toString().trim().slice(0, 200);
-  const uploader = (formData.get('uploader') || '').toString().trim().slice(0, 40);
+  const uploader = session.username; // always the real Discord identity, never client-supplied
 
   if (!caption) return jsonResponse({ error: 'A caption is required.' }, 400);
-  if (!uploader) return jsonResponse({ error: 'Your name is required.' }, 400);
 
   // Check the whole batch fits before writing anything.
   const batchSize = files.reduce((sum, f) => sum + f.size, 0);
@@ -341,14 +340,14 @@ async function handleServeFile(pathname, env) {
   return new Response(object.body, { headers });
 }
 
-function checkAdminPassword(request, env) {
-  const provided = request.headers.get('X-Admin-Password') || '';
-  return Boolean(env.ADMIN_PASSWORD) && provided === env.ADMIN_PASSWORD;
+async function isSessionAdmin(request, env) {
+  const session = await getSession(request, env);
+  return Boolean(session) && isAuthorizedAdmin(session.discordId, env);
 }
 
 async function handleDelete(request, id, env) {
-  if (!checkAdminPassword(request, env)) {
-    return jsonResponse({ error: 'Incorrect password.' }, 401);
+  if (!await isSessionAdmin(request, env)) {
+    return jsonResponse({ error: 'Not authorized.' }, 401);
   }
 
   const key = ITEM_PREFIX + id;
@@ -431,18 +430,12 @@ async function handleDiscordInteraction(request, env) {
 
   if (interaction.type === DISCORD_INTERACTION_APPLICATION_COMMAND) {
     if (interaction.data && interaction.data.name === 'adminpassword') {
-      const userId = getDiscordUserId(interaction);
-      const isAuthorized = isAuthorizedAdmin(userId, env);
-
-      const content = isAuthorized
-        ? (env.ADMIN_PASSWORD
-            ? `The gallery admin password is: \`${env.ADMIN_PASSWORD}\``
-            : 'ADMIN_PASSWORD isn\'t set on the server yet — ask whoever manages the Worker to set it.')
-        : "You don't have permission to use this command.";
-
       return jsonResponse({
         type: DISCORD_RESPONSE_CHANNEL_MESSAGE,
-        data: { content, flags: DISCORD_EPHEMERAL_FLAG }
+        data: {
+          content: "This command has been retired — there's no more shared password. Just log in with Discord at /gallery/admin on the site, and it'll unlock automatically if you're an admin.",
+          flags: DISCORD_EPHEMERAL_FLAG
+        }
       });
     }
 
@@ -468,10 +461,6 @@ export default {
 
       if (pathname === '/api/upload' && request.method === 'POST') {
         return await handleUpload(request, env);
-      }
-
-      if (pathname === '/api/admin/verify' && request.method === 'POST') {
-        return jsonResponse({ ok: checkAdminPassword(request, env) }, checkAdminPassword(request, env) ? 200 : 401);
       }
 
       if (pathname.startsWith('/api/gallery/') && request.method === 'DELETE') {
