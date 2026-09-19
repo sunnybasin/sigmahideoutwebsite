@@ -88,54 +88,36 @@
       margin: 0 0 2rem 0;
     }
 
-    /* ---- Login gate ---- */
-    .login-panel {
+    /* ---- Gate states (logged out / not admin) ---- */
+    .gate-panel {
       width: 100%;
-      max-width: 380px;
+      max-width: 420px;
       font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
       background: var(--card-bg);
       border: 1px solid var(--card-border);
       border-radius: 16px;
       padding: 2rem;
+      text-align: center;
     }
-    .login-panel label {
-      display: block;
-      font-size: 0.85rem;
+    .gate-panel p {
       color: var(--text-dim);
-      margin-bottom: 0.5rem;
-    }
-    .login-panel input[type="password"] {
-      width: 100%;
-      background: rgba(255,255,255,0.04);
-      border: 1px solid var(--card-border);
-      color: var(--text);
-      padding: 0.7rem 0.9rem;
-      border-radius: 8px;
       font-size: 0.95rem;
-      font-family: inherit;
-      margin-bottom: 1rem;
+      margin: 0 0 1.4rem 0;
     }
-    button.submit-btn {
-      background: var(--ember-dim);
-      color: #1a0d0d;
-      border: none;
-      padding: 0.7rem 1.4rem;
-      border-radius: 8px;
+    .discord-login-btn {
+      display: inline-flex;
+      align-items: center;
+      gap: 0.6rem;
+      background: #5865F2;
+      color: #fff;
+      text-decoration: none;
+      padding: 0.75rem 1.6rem;
+      border-radius: 999px;
       font-size: 0.9rem;
       font-weight: 600;
-      cursor: pointer;
       transition: filter 0.15s ease;
-      width: 100%;
     }
-    button.submit-btn:hover { filter: brightness(1.1); }
-    button.submit-btn:disabled { opacity: 0.5; cursor: not-allowed; }
-    .login-error {
-      color: #e07a7a;
-      font-size: 0.85rem;
-      margin-top: 0.8rem;
-      min-height: 1.2em;
-      font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
-    }
+    .discord-login-btn:hover { filter: brightness(1.1); }
 
     /* ---- Admin grid ---- */
     #adminArea { display: none; width: 100%; }
@@ -201,16 +183,38 @@
       font-size: 0.9rem;
       padding: 2rem 0;
     }
+    .top-row {
+      width: 100%;
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      margin-bottom: 1.5rem;
+      flex-wrap: wrap;
+      gap: 1rem;
+    }
     .back-link {
       font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
       display: inline-flex;
       color: var(--text-dim);
       text-decoration: none;
       font-size: 0.9rem;
-      margin-bottom: 1.5rem;
       transition: color 0.15s ease;
     }
     .back-link:hover { color: var(--ember-dim); }
+    .who-badge {
+      display: flex;
+      align-items: center;
+      gap: 0.6rem;
+      font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
+      font-size: 0.85rem;
+      color: var(--text-dim);
+    }
+    .who-badge img {
+      width: 26px;
+      height: 26px;
+      border-radius: 50%;
+      border: 1px solid var(--ember-dim);
+    }
   </style>
 </head>
 <body>
@@ -221,19 +225,19 @@
 </nav>
 
 <main>
-  <div id="loginArea">
+  <div id="gateArea">
     <h1>Gallery <span class="fire">Admin</span></h1>
-    <p class="tagline">Enter the admin password to view and delete gallery items.</p>
-    <div class="login-panel">
-      <label for="passwordInput">Password</label>
-      <input type="password" id="passwordInput" autocomplete="current-password">
-      <button class="submit-btn" id="loginBtn">Log in</button>
-      <div class="login-error" id="loginError"></div>
+    <p class="tagline">Admin access only — log in with Discord to continue.</p>
+    <div class="gate-panel" id="gatePanel">
+      <p>Loading...</p>
     </div>
   </div>
 
   <div id="adminArea">
-    <a href="/gallery" class="back-link">&larr; back to the gallery</a>
+    <div class="top-row">
+      <a href="/gallery" class="back-link">&larr; back to the gallery</a>
+      <span class="who-badge" id="whoBadge"></span>
+    </div>
     <h1>Gallery <span class="fire">Admin</span></h1>
     <p class="tagline">Click the &times; on anything you want to remove. This can't be undone.</p>
     <div class="status-bar" id="statusBar"></div>
@@ -245,16 +249,13 @@
 <script src="/particles.js?v=2"></script>
 <script>
 (function () {
-  const loginArea = document.getElementById('loginArea');
+  const gateArea = document.getElementById('gateArea');
+  const gatePanel = document.getElementById('gatePanel');
   const adminArea = document.getElementById('adminArea');
-  const passwordInput = document.getElementById('passwordInput');
-  const loginBtn = document.getElementById('loginBtn');
-  const loginError = document.getElementById('loginError');
+  const whoBadge = document.getElementById('whoBadge');
   const statusBar = document.getElementById('statusBar');
   const adminGrid = document.getElementById('adminGrid');
   const emptyState = document.getElementById('emptyState');
-
-  let adminPassword = '';
 
   function setStatus(msg, kind) {
     statusBar.textContent = msg || '';
@@ -267,38 +268,41 @@
     return div.innerHTML;
   }
 
-  async function tryLogin() {
-    const value = passwordInput.value;
-    if (!value) return;
-
-    loginBtn.disabled = true;
-    loginError.textContent = '';
-
+  async function checkAccess() {
+    let data;
     try {
-      const res = await fetch('/api/admin/verify', {
-        method: 'POST',
-        headers: { 'X-Admin-Password': value }
-      });
-      if (!res.ok) {
-        loginError.textContent = 'Incorrect password.';
-        loginBtn.disabled = false;
-        return;
-      }
-
-      adminPassword = value;
-      loginArea.style.display = 'none';
-      adminArea.classList.add('visible');
-      loadGallery();
-    } catch (err) {
-      loginError.textContent = 'Could not verify password. Try again.';
-      loginBtn.disabled = false;
+      const res = await fetch('/api/auth/me');
+      data = await res.json();
+    } catch {
+      gatePanel.innerHTML = '<p>Could not check login status. Try refreshing.</p>';
+      return;
     }
-  }
 
-  loginBtn.addEventListener('click', tryLogin);
-  passwordInput.addEventListener('keydown', e => {
-    if (e.key === 'Enter') tryLogin();
-  });
+    if (!data.loggedIn) {
+      gatePanel.innerHTML = `
+        <p>You need to log in with Discord to access this page.</p>
+        <a href="/api/auth/login" class="discord-login-btn">Log in with Discord</a>
+      `;
+      return;
+    }
+
+    if (!data.isAdmin) {
+      gatePanel.innerHTML = `
+        <p>You're logged in as ${escapeHtml(data.username)}, but this account doesn't have admin access.</p>
+      `;
+      return;
+    }
+
+    // Logged in and authorized — show the admin area.
+    gateArea.style.display = 'none';
+    adminArea.classList.add('visible');
+
+    whoBadge.innerHTML = data.avatar
+      ? `<img src="${data.avatar}" alt="${escapeHtml(data.username)}" title="${escapeHtml(data.username)}">`
+      : escapeHtml(data.username);
+
+    loadGallery();
+  }
 
   async function loadGallery() {
     try {
@@ -340,10 +344,7 @@
     setStatus('Deleting...');
 
     try {
-      const res = await fetch(`/api/gallery/${id}`, {
-        method: 'DELETE',
-        headers: { 'X-Admin-Password': adminPassword }
-      });
+      const res = await fetch(`/api/gallery/${id}`, { method: 'DELETE' });
       const data = await res.json();
       if (!res.ok) throw new Error(data.error || 'Delete failed.');
 
@@ -356,6 +357,8 @@
       setStatus(err.message || 'Something went wrong.', 'error');
     }
   }
+
+  checkAccess();
 })();
 </script>
 </body>
