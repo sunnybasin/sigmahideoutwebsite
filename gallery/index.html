@@ -231,6 +231,13 @@
       white-space: nowrap;
     }
     .upload-link:hover { filter: brightness(1.1); }
+    .nav-avatar {
+      width: 28px;
+      height: 28px;
+      border-radius: 50%;
+      display: block;
+      border: 1px solid var(--ember-dim);
+    }
 
     /* ---- Search bar ---- */
     .search-row {
@@ -551,10 +558,20 @@
     try {
       const res = await fetch('/api/auth/me');
       const data = await res.json();
-      loginStatus.textContent = data.loggedIn
-        ? `Logged in as ${data.username}`
-        : '';
-      if (!data.loggedIn) {
+
+      loginStatus.innerHTML = '';
+      if (data.loggedIn) {
+        if (data.avatar) {
+          const img = document.createElement('img');
+          img.src = data.avatar;
+          img.alt = data.username;
+          img.title = data.username;
+          img.className = 'nav-avatar';
+          loginStatus.appendChild(img);
+        } else {
+          loginStatus.textContent = data.username;
+        }
+      } else {
         loginStatus.innerHTML = '<a href="/api/auth/login" style="color: var(--text-dim); text-decoration: underline;">Log in with Discord</a>';
       }
     } catch {
