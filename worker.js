@@ -11,6 +11,14 @@
 // through slash commands with popup forms — /create_event, /edit_event,
 // /delete_event — admin-only. Discord itself is the source of truth; the
 // website just reads the list back out to show on /events and /home.
+// Each change also posts a ping-free announcement.
+//
+// /admin_help and /notify_admins (both admin-only) DM every current admin
+// — the first resends a fixed how-to-use guide, the second sends a
+// custom message. The scheduled() handler below also runs on a cron
+// (see wrangler.jsonc) to auto-DM the guide to anyone newly added to
+// DISCORD_ADMIN_USER_IDS, so new admins get welcomed without anyone
+// having to remember to run a command.
 //
 // Routes:
 //   GET    /api/gallery         -> list all uploaded items (newest first)
@@ -594,10 +602,79 @@ function getDiscordUserId(interaction) {
     || null;
 }
 
+function getAdminUserIds(env) {
+  if (!env.DISCORD_ADMIN_USER_IDS) return [];
+  return env.DISCORD_ADMIN_USER_IDS.split(',').map(id => id.trim()).filter(Boolean);
+}
+
 function isAuthorizedAdmin(userId, env) {
-  if (!userId || !env.DISCORD_ADMIN_USER_IDS) return false;
-  const allowed = env.DISCORD_ADMIN_USER_IDS.split(',').map(id => id.trim()).filter(Boolean);
-  return allowed.includes(userId);
+  if (!userId) return false;
+  return getAdminUserIds(env).includes(userId);
+}
+
+// ---- Direct messages to admins ----
+
+async function sendDirectMessage(userId, content, env) {
+  const dmChannelRes = await discordApiRequest('/users/@me/channels', {
+    method: 'POST',
+    body: JSON.stringify({ recipient_id: userId })
+  }, env);
+  if (!dmChannelRes.ok) throw new Error(await dmChannelRes.text());
+  const dmChannel = await dmChannelRes.json();
+
+  const msgRes = await discordApiRequest(`/channels/${dmChannel.id}/messages`, {
+    method: 'POST',
+    body: JSON.stringify({ content, allowed_mentions: { parse: [] } })
+  }, env);
+  if (!msgRes.ok) throw new Error(await msgRes.text());
+}
+
+async function dmAdmins(userIds, content, env) {
+  const results = await Promise.allSettled(userIds.map(id => sendDirectMessage(id, content, env)));
+  const succeeded = results.filter(r => r.status === 'fulfilled').length;
+  return { succeeded, failed: results.length - succeeded, total: results.length };
+}
+
+const ADMIN_HELP_TEXT = `**Sigma Hideout — Admin Commands**
+
+You're on the admin list, which means you can:
+
+**Events**
+• \`/create_event\` — opens a popup to create a new server event (name, location, start/end time, description). Posts a ping-free announcement automatically.
+• \`/edit_event {name}\` — opens the same popup, pre-filled, to update an existing event. \`{name}\` must match the event's current name exactly.
+• \`/delete_event {name}\` — deletes an event immediately, no popup. \`{name}\` must match exactly.
+
+Start/End times are entered as \`YYYY-MM-DD HH:MM\` and always treated as **UTC**.
+
+**Gallery**
+• Go to sigmahideout.de/gallery/admin and log in with Discord — it unlocks automatically since you're on the admin list. From there you can delete any gallery upload.
+
+**Keeping other admins in the loop**
+• \`/admin_help\` — resends this exact guide to every current admin (including you).
+• \`/notify_admins {message}\` — DMs every current admin with a custom update, e.g. if these commands change in the future.
+
+Access is checked live, every time — if you're ever removed from the admin list, all of this stops working immediately, no action needed on your end.`;
+
+// ---- Auto-welcome newly added admins (runs on a schedule) ----
+
+const KNOWN_ADMINS_KEY = 'known-admin-ids';
+
+async function checkForNewAdmins(env) {
+  const currentAdmins = getAdminUserIds(env);
+  const knownRaw = await env.GALLERY_KV.get(KNOWN_ADMINS_KEY);
+  const knownAdmins = knownRaw ? JSON.parse(knownRaw) : [];
+
+  const newAdmins = currentAdmins.filter(id => !knownAdmins.includes(id));
+
+  if (newAdmins.length > 0) {
+    await dmAdmins(
+      newAdmins,
+      `👋 You've been added as an admin for Sigma Hideout. Here's what that unlocks:\n\n${ADMIN_HELP_TEXT}`,
+      env
+    );
+  }
+
+  await env.GALLERY_KV.put(KNOWN_ADMINS_KEY, JSON.stringify(currentAdmins));
 }
 
 async function handleSlashCommand(interaction, env) {
@@ -643,6 +720,24 @@ async function handleSlashCommand(interaction, env) {
     } catch (err) {
       return ephemeral('Could not delete that event: ' + err.message);
     }
+  }
+
+  if (commandName === 'admin_help') {
+    if (!isAuthorizedAdmin(userId, env)) return ephemeral("You don't have permission to use this.");
+    const admins = getAdminUserIds(env);
+    const { succeeded, failed, total } = await dmAdmins(admins, ADMIN_HELP_TEXT, env);
+    return ephemeral(`Sent to ${succeeded}/${total} admins.` + (failed ? ` (${failed} couldn't be reached — they may have DMs closed to this server.)` : ''));
+  }
+
+  if (commandName === 'notify_admins') {
+    if (!isAuthorizedAdmin(userId, env)) return ephemeral("You don't have permission to use this.");
+    const msgOpt = (interaction.data.options || []).find(o => o.name === 'message');
+    const message = (msgOpt ? msgOpt.value : '').trim();
+    if (!message) return ephemeral('Message cannot be empty.');
+
+    const admins = getAdminUserIds(env);
+    const { succeeded, failed, total } = await dmAdmins(admins, `📢 **Admin update:**\n${message}`, env);
+    return ephemeral(`Sent to ${succeeded}/${total} admins.` + (failed ? ` (${failed} couldn't be reached.)` : ''));
   }
 
   return ephemeral('Unknown command.');
@@ -780,5 +875,14 @@ export default {
 
     // Everything else -> static assets (your existing HTML pages, images, particles.js, etc.)
     return env.ASSETS.fetch(request);
+  },
+
+  // Runs on the schedule set in wrangler.jsonc (see "triggers" -> "crons").
+  // Compares the current DISCORD_ADMIN_USER_IDS against who was already
+  // known, and DMs anyone new with the admin help guide — so adding
+  // someone to that list is the only step needed; they get welcomed
+  // automatically next time this runs.
+  async scheduled(event, env, ctx) {
+    await checkForNewAdmins(env);
   }
 };
