@@ -438,6 +438,28 @@ async function deleteScheduledEvent(eventId, env) {
   if (!res.ok) throw new Error(await res.text());
 }
 
+// ---- Announcements ----
+// Posted to a fixed channel whenever an event is created/edited/deleted.
+// allowed_mentions: { parse: [] } strips out ALL pings — @everyone, @here,
+// roles, users — even if they appear in the text, so this can never
+// accidentally ping the whole server.
+
+function discordTimestamp(date, style) {
+  return `<t:${Math.floor(date.getTime() / 1000)}:${style}>`;
+}
+
+async function announceToChannel(content, env) {
+  if (!env.DISCORD_ANNOUNCEMENTS_CHANNEL_ID) return; // not configured — skip silently
+  try {
+    await discordApiRequest(`/channels/${env.DISCORD_ANNOUNCEMENTS_CHANNEL_ID}/messages`, {
+      method: 'POST',
+      body: JSON.stringify({ content, allowed_mentions: { parse: [] } })
+    }, env);
+  } catch {
+    // An announcement failing shouldn't undo the event change itself.
+  }
+}
+
 async function handleListEventsPublic(env) {
   const events = await listScheduledEvents(env);
   const simplified = events
@@ -616,7 +638,8 @@ async function handleSlashCommand(interaction, env) {
 
     try {
       await deleteScheduledEvent(existing.id, env);
-      return ephemeral(`Deleted "${existing.name}".`);
+      await announceToChannel(`🗑️ **Event cancelled:** ${existing.name}`, env);
+      return ephemeral(`Deleted "${existing.name}". Announced in the announcements channel.`);
     } catch (err) {
       return ephemeral('Could not delete that event: ' + err.message);
     }
@@ -656,12 +679,23 @@ async function handleModalSubmit(interaction, env) {
   try {
     if (customId === 'create_event_modal') {
       await createScheduledEvent(eventFields, env);
-      return ephemeral(`Created "${fields.name}". It'll show up on the site and in Discord's Events tab shortly.`);
+
+      let announcement = `📅 **New event: ${fields.name}**\n${discordTimestamp(startTime, 'F')} (${discordTimestamp(startTime, 'R')})`;
+      if (fields.location) announcement += `\n📍 ${fields.location}`;
+      if (fields.description) announcement += `\n\n${fields.description}`;
+      await announceToChannel(announcement, env);
+
+      return ephemeral(`Created "${fields.name}". Announced in the announcements channel.`);
     }
     if (customId.startsWith('edit_event_modal:')) {
       const eventId = customId.split(':')[1];
       await updateScheduledEvent(eventId, eventFields, env);
-      return ephemeral(`Updated "${fields.name}".`);
+
+      let announcement = `✏️ **Event updated: ${fields.name}**\n${discordTimestamp(startTime, 'F')} (${discordTimestamp(startTime, 'R')})`;
+      if (fields.location) announcement += `\n📍 ${fields.location}`;
+      await announceToChannel(announcement, env);
+
+      return ephemeral(`Updated "${fields.name}". Announced in the announcements channel.`);
     }
   } catch (err) {
     return ephemeral('Something went wrong talking to Discord: ' + err.message);
