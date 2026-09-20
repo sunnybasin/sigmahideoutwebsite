@@ -632,7 +632,11 @@ async function sendDirectMessage(userId, content, env) {
 async function dmAdmins(userIds, content, env) {
   const results = await Promise.allSettled(userIds.map(id => sendDirectMessage(id, content, env)));
   const succeeded = results.filter(r => r.status === 'fulfilled').length;
-  return { succeeded, failed: results.length - succeeded, total: results.length };
+  const failures = results
+    .map((r, i) => ({ id: userIds[i], result: r }))
+    .filter(x => x.result.status === 'rejected')
+    .map(x => `${x.id}: ${x.result.reason.message.slice(0, 150)}`);
+  return { succeeded, failed: results.length - succeeded, total: results.length, failures };
 }
 
 const ADMIN_HELP_TEXT = `**Sigma Hideout — Admin Commands**
@@ -725,8 +729,10 @@ async function handleSlashCommand(interaction, env) {
   if (commandName === 'admin_help') {
     if (!isAuthorizedAdmin(userId, env)) return ephemeral("You don't have permission to use this.");
     const admins = getAdminUserIds(env);
-    const { succeeded, failed, total } = await dmAdmins(admins, ADMIN_HELP_TEXT, env);
-    return ephemeral(`Sent to ${succeeded}/${total} admins.` + (failed ? ` (${failed} couldn't be reached — they may have DMs closed to this server.)` : ''));
+    const { succeeded, failed, total, failures } = await dmAdmins(admins, ADMIN_HELP_TEXT, env);
+    let msg = `Sent to ${succeeded}/${total} admins.`;
+    if (failed) msg += `\n\n${failed} failed:\n` + failures.map(f => `• ${f}`).join('\n');
+    return ephemeral(msg);
   }
 
   if (commandName === 'notify_admins') {
@@ -736,8 +742,10 @@ async function handleSlashCommand(interaction, env) {
     if (!message) return ephemeral('Message cannot be empty.');
 
     const admins = getAdminUserIds(env);
-    const { succeeded, failed, total } = await dmAdmins(admins, `📢 **Admin update:**\n${message}`, env);
-    return ephemeral(`Sent to ${succeeded}/${total} admins.` + (failed ? ` (${failed} couldn't be reached.)` : ''));
+    const { succeeded, failed, total, failures } = await dmAdmins(admins, `📢 **Admin update:**\n${message}`, env);
+    let resultMsg = `Sent to ${succeeded}/${total} admins.`;
+    if (failed) resultMsg += `\n\n${failed} failed:\n` + failures.map(f => `• ${f}`).join('\n');
+    return ephemeral(resultMsg);
   }
 
   return ephemeral('Unknown command.');
