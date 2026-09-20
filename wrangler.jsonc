@@ -28,7 +28,8 @@
       "id": "940547dcdaff4cb68a2c9ad78b9a3f32"
     }
   ],
-  "triggers": {
-    "crons": ["0 */6 * * *"]
+"triggers": {
+  "crons": ["*/5 * * * *"]
+}
   }
 }
