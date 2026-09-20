@@ -8,14 +8,13 @@
     "binding": "ASSETS",
     "run_worker_first": ["/api/*", "/uploads/*"]
   },
-  "vars": {
+   "vars": {
     "DISCORD_CLIENT_ID": "1550858901711228948",
     "DISCORD_GUILD_ID": "1304675177476653099",
     "DISCORD_ADMIN_USER_IDS": "1007860922297106543, 605505187444031502, 607064552726593536, 834576318426382417, 811416878559002644, 1036432962440413325, 888224472107204610, 1268644904280658012",
     "DISCORD_PUBLIC_KEY": "36fcb0bd64131bd0367570635ce210228b830795fb1489d791f70835c102aff1",
     "DISCORD_ANNOUNCEMENTS_CHANNEL_ID": "1304686446741033021"
   },
-
   "r2_buckets": [
     {
       "binding": "sigma_gallery",
@@ -28,8 +27,7 @@
       "id": "940547dcdaff4cb68a2c9ad78b9a3f32"
     }
   ],
-"triggers": {
-  "crons": ["*/1 * * * *"]
-}
+  "triggers": {
+    "crons": ["*/1 * * * *"]
   }
 }
