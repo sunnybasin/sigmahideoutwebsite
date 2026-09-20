@@ -405,52 +405,76 @@
       width: 100%;
       margin: 0;
     }
-    .wip {
+    .events-box {
       width: 100%;
       display: flex;
       flex-direction: column;
-      align-items: center;
-      justify-content: center;
-      text-align: center;
       gap: 1.2rem;
-      padding: 3rem 2.5rem;
+      padding: 2.4rem 2.5rem;
       border: 1px solid var(--ember-dim);
       border-radius: 20px;
       background: rgba(64, 3, 3, 0.25);
     }
-    .wip img {
-      width: 190px;
-      max-width: 50%;
-      height: auto;
-    }
-    .wip p {
+    .events-box-label {
       font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
-      font-size: 1.2rem;
+      font-size: 0.85rem;
+      letter-spacing: 0.1em;
+      text-transform: uppercase;
       color: var(--text-dim);
-      margin: 0;
     }
-    .event-preview-item {
-      margin-top: 0.6rem;
+    .events-tabs {
+      display: flex;
+      gap: 0.6rem;
+      flex-wrap: wrap;
     }
-    .event-preview-item .ep-name {
+    .events-tab {
       font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
-      font-size: 1.1rem;
+      font-size: 0.8rem;
+      padding: 0.4rem 0.9rem;
+      border-radius: 999px;
+      border: 1px solid rgba(180, 56, 56, 0.4);
+      background: transparent;
+      color: var(--text-dim);
+      cursor: pointer;
+      transition: background 0.15s ease, color 0.15s ease, border-color 0.15s ease;
+    }
+    .events-tab:hover {
+      border-color: var(--ember-dim);
       color: var(--text);
     }
-    .event-preview-item .ep-when {
+    .events-tab.active {
+      background: var(--ember-dim);
+      border-color: var(--ember-dim);
+      color: #1a0d0d;
+      font-weight: 600;
+    }
+    .events-tab-panel .etp-name {
+      font-family: 'Georgia', 'Iowan Old Style', serif;
+      font-size: 1.4rem;
+      color: var(--text);
+      margin: 0 0 0.4rem 0;
+    }
+    .events-tab-panel .etp-when {
       font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
       font-size: 0.85rem;
       color: var(--ember-dim);
+      font-weight: 600;
     }
-    .event-preview-link {
+    .events-tab-panel .etp-location {
+      font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
+      font-size: 0.85rem;
+      color: var(--text-dim);
+      margin-top: 0.4rem;
+    }
+    .events-tab-panel .etp-link {
       display: inline-block;
-      margin-top: 0.8rem;
+      margin-top: 1rem;
       font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
       font-size: 0.85rem;
       color: var(--text-dim);
       text-decoration: underline;
     }
-    .event-preview-link:hover {
+    .events-tab-panel .etp-link:hover {
       color: var(--ember-dim);
     }
     .quicklinks {
@@ -553,24 +577,12 @@
         flex-direction: row;
         align-items: stretch;
       }
-      .content-row .wip {
+      .content-row .events-box {
         flex: 2;
-        flex-direction: row;
-        text-align: left;
-        gap: 2.5rem;
-        padding: 3rem 3.5rem;
+        padding: 2.4rem 3.5rem;
       }
       .content-row .quicklinks {
         flex: 1;
-      }
-      .wip img {
-        width: 170px;
-        flex-shrink: 0;
-      }
-      .wip-text {
-        display: flex;
-        flex-direction: column;
-        gap: 0.7rem;
       }
     }
   </style>
@@ -620,13 +632,10 @@
       <h3>Quick Links</h3>
     </div>
 
-    <div class="wip">
-      <img src="/sunny3.png" alt="Confused cat mascot">
-      <div class="wip-text">
-        <div style="font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif; font-size: 0.85rem; letter-spacing: 0.1em; text-transform: uppercase; color: var(--text-dim);">Upcoming Events</div>
-        <div id="eventsPreview">
-          <p style="font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif; color: var(--text-dim); margin: 0.4rem 0 0 0;">Loading...</p>
-        </div>
+    <div class="events-box">
+      <div class="events-box-label">Upcoming Events</div>
+      <div id="eventsPreview">
+        <p style="font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif; color: var(--text-dim); margin: 0;">Loading...</p>
       </div>
     </div>
   </div>
@@ -683,30 +692,43 @@
     });
   }
 
+  function tabLabel(iso) {
+    return new Date(iso).toLocaleDateString(undefined, { month: 'short', day: 'numeric' });
+  }
+
   fetch('/api/events').then(r => r.json()).then(events => {
     if (!events.length) {
-      previewEl.innerHTML = '<p style="font-family: -apple-system, BlinkMacSystemFont, \'Segoe UI\', sans-serif; color: var(--text-dim); margin: 0.4rem 0 0 0;">Nothing on the calendar yet — check back soon!</p>';
+      previewEl.innerHTML = '<p style="font-family: -apple-system, BlinkMacSystemFont, \'Segoe UI\', sans-serif; color: var(--text-dim); margin: 0;">Nothing on the calendar yet — check back soon!</p>';
       return;
     }
 
-    previewEl.innerHTML = '';
-    events.slice(0, 2).forEach(ev => {
-      const item = document.createElement('div');
-      item.className = 'event-preview-item';
-      item.innerHTML = `
-        <div class="ep-name">${escapeHtml(ev.name)}</div>
-        <div class="ep-when">${escapeHtml(formatShort(ev.start))}</div>
-      `;
-      previewEl.appendChild(item);
-    });
+    const shown = events.slice(0, 4);
+    let activeIndex = 0;
 
-    const link = document.createElement('a');
-    link.href = '/events';
-    link.className = 'event-preview-link';
-    link.textContent = 'See all events →';
-    previewEl.appendChild(link);
+    function render() {
+      const ev = shown[activeIndex];
+      previewEl.innerHTML = `
+        <div class="events-tabs">
+          ${shown.map((e, i) => `<button type="button" class="events-tab${i === activeIndex ? ' active' : ''}" data-index="${i}">${escapeHtml(tabLabel(e.start))}</button>`).join('')}
+        </div>
+        <div class="events-tab-panel">
+          <div class="etp-name">${escapeHtml(ev.name)}</div>
+          <div class="etp-when">${escapeHtml(formatShort(ev.start))}</div>
+          ${ev.location ? `<div class="etp-location">📍 ${escapeHtml(ev.location)}</div>` : ''}
+          <a href="/events" class="etp-link">See all events →</a>
+        </div>
+      `;
+      previewEl.querySelectorAll('.events-tab').forEach(btn => {
+        btn.addEventListener('click', () => {
+          activeIndex = parseInt(btn.dataset.index, 10);
+          render();
+        });
+      });
+    }
+
+    render();
   }).catch(() => {
-    previewEl.innerHTML = '<p style="font-family: -apple-system, BlinkMacSystemFont, \'Segoe UI\', sans-serif; color: var(--text-dim); margin: 0.4rem 0 0 0;">Could not load events right now.</p>';
+    previewEl.innerHTML = '<p style="font-family: -apple-system, BlinkMacSystemFont, \'Segoe UI\', sans-serif; color: var(--text-dim); margin: 0;">Could not load events right now.</p>';
   });
 })();
 </script>

@@ -391,12 +391,39 @@ async function discordApiRequest(path, options, env) {
 
 // ---- Server events (Discord's native Guild Scheduled Events) ----
 // Discord itself is the source of truth — nothing about events is stored
-// in KV. The website reads the list back out via GET /api/events.
+// in KV, EXCEPT a short-lived "last known good" snapshot (EVENTS_CACHE_KEY
+// below), used only as a fallback if a live request to Discord fails.
+// Without this, a single transient failure (rate limit, network blip)
+// would make the site briefly show "no events" even though real events
+// exist — this makes that show the last successful list instead.
+
+const EVENTS_CACHE_KEY = 'events-cache';
+const EVENTS_CACHE_TTL_SECONDS = 600; // how long a fallback snapshot stays usable
+
+async function fetchScheduledEventsOnce(env) {
+  const res = await discordApiRequest(`/guilds/${env.DISCORD_GUILD_ID}/scheduled-events`, { method: 'GET' }, env);
+  if (!res.ok) throw new Error(`Discord API returned ${res.status}`);
+  return res.json();
+}
 
 async function listScheduledEvents(env) {
-  const res = await discordApiRequest(`/guilds/${env.DISCORD_GUILD_ID}/scheduled-events`, { method: 'GET' }, env);
-  if (!res.ok) return [];
-  return res.json();
+  try {
+    const data = await fetchScheduledEventsOnce(env);
+    // Success — remember this as the fallback for next time something goes wrong.
+    await env.GALLERY_KV.put(EVENTS_CACHE_KEY, JSON.stringify(data), { expirationTtl: EVENTS_CACHE_TTL_SECONDS });
+    return data;
+  } catch {
+    // First failure — try once more immediately, transient blips often clear right away.
+    try {
+      const data = await fetchScheduledEventsOnce(env);
+      await env.GALLERY_KV.put(EVENTS_CACHE_KEY, JSON.stringify(data), { expirationTtl: EVENTS_CACHE_TTL_SECONDS });
+      return data;
+    } catch {
+      // Still failing — fall back to the last successful list rather than showing nothing.
+      const cached = await env.GALLERY_KV.get(EVENTS_CACHE_KEY);
+      return cached ? JSON.parse(cached) : [];
+    }
+  }
 }
 
 async function findEventByName(name, env) {
@@ -457,14 +484,15 @@ function discordTimestamp(date, style) {
 }
 
 async function announceToChannel(content, env) {
-  if (!env.DISCORD_ANNOUNCEMENTS_CHANNEL_ID) return; // not configured — skip silently
+  if (!env.DISCORD_ANNOUNCEMENTS_CHANNEL_ID) return false; // not configured
   try {
-    await discordApiRequest(`/channels/${env.DISCORD_ANNOUNCEMENTS_CHANNEL_ID}/messages`, {
+    const res = await discordApiRequest(`/channels/${env.DISCORD_ANNOUNCEMENTS_CHANNEL_ID}/messages`, {
       method: 'POST',
       body: JSON.stringify({ content, allowed_mentions: { parse: [] } })
     }, env);
+    return res.ok;
   } catch {
-    // An announcement failing shouldn't undo the event change itself.
+    return false;
   }
 }
 
@@ -515,6 +543,19 @@ function buildEventModal(customId, title, prefill) {
   });
 }
 
+function buildTalkModal() {
+  return jsonResponse({
+    type: DISCORD_RESPONSE_MODAL,
+    data: {
+      custom_id: 'talk_modal',
+      title: 'Send a message',
+      components: [
+        textInputRow('message', 'Message', 2, true)
+      ]
+    }
+  });
+}
+
 function extractModalFields(interaction) {
   const fields = {};
   (interaction.data.components || []).forEach(row => {
@@ -550,6 +591,25 @@ function ephemeral(content) {
   return jsonResponse({
     type: DISCORD_RESPONSE_CHANNEL_MESSAGE,
     data: { content, flags: DISCORD_EPHEMERAL_FLAG }
+  });
+}
+
+function deferred() {
+  return jsonResponse({
+    type: DISCORD_RESPONSE_DEFERRED,
+    data: { flags: DISCORD_EPHEMERAL_FLAG }
+  });
+}
+
+// Edits the "thinking..." placeholder left by a deferred response, once
+// background work (like DMing several people) finishes. This uses the
+// interaction's own token, not the bot token — no Authorization header
+// needed, this endpoint is self-authorizing.
+async function editDeferredResponse(applicationId, interactionToken, content) {
+  await fetch(`https://discord.com/api/v10/webhooks/${applicationId}/${interactionToken}/messages/@original`, {
+    method: 'PATCH',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({ content })
   });
 }
 
@@ -592,6 +652,7 @@ const DISCORD_INTERACTION_MODAL_SUBMIT = 5;
 const DISCORD_RESPONSE_PONG = 1;
 const DISCORD_RESPONSE_CHANNEL_MESSAGE = 4;
 const DISCORD_RESPONSE_MODAL = 9;
+const DISCORD_RESPONSE_DEFERRED = 5; // DEFERRED_CHANNEL_MESSAGE_WITH_SOURCE — "thinking..." placeholder
 const DISCORD_EPHEMERAL_FLAG = 64;
 
 function getDiscordUserId(interaction) {
@@ -602,9 +663,47 @@ function getDiscordUserId(interaction) {
     || null;
 }
 
+function getDiscordUsername(interaction) {
+  const user = (interaction.member && interaction.member.user) || interaction.user;
+  if (!user) return 'Unknown';
+  return user.global_name || user.username || 'Unknown';
+}
+
 function getAdminUserIds(env) {
   if (!env.DISCORD_ADMIN_USER_IDS) return [];
   return env.DISCORD_ADMIN_USER_IDS.split(',').map(id => id.trim()).filter(Boolean);
+}
+
+// ---- Notify-admins history log ----
+
+const NOTIFY_LOG_PREFIX = 'notify-log:';
+const NOTIFY_LOG_TTL_SECONDS = 60 * 60 * 24 * 180; // keep 180 days of history
+
+async function logNotifyMessage(senderName, senderId, message, env) {
+  const key = `${NOTIFY_LOG_PREFIX}${Date.now()}-${crypto.randomUUID()}`;
+  await env.GALLERY_KV.put(key, JSON.stringify({
+    senderName,
+    senderId,
+    message,
+    sentAt: Date.now()
+  }), { expirationTtl: NOTIFY_LOG_TTL_SECONDS });
+}
+
+async function listNotifyHistory(env, limit) {
+  const entries = [];
+  let cursor;
+  do {
+    const page = await env.GALLERY_KV.list({ prefix: NOTIFY_LOG_PREFIX, cursor });
+    cursor = page.cursor;
+    const values = await Promise.all(page.keys.map(k => env.GALLERY_KV.get(k.name)));
+    for (const v of values) {
+      if (v) entries.push(JSON.parse(v));
+    }
+    if (page.list_complete) break;
+  } while (cursor);
+
+  entries.sort((a, b) => b.sentAt - a.sentAt);
+  return entries.slice(0, limit);
 }
 
 function isAuthorizedAdmin(userId, env) {
@@ -632,7 +731,11 @@ async function sendDirectMessage(userId, content, env) {
 async function dmAdmins(userIds, content, env) {
   const results = await Promise.allSettled(userIds.map(id => sendDirectMessage(id, content, env)));
   const succeeded = results.filter(r => r.status === 'fulfilled').length;
-  return { succeeded, failed: results.length - succeeded, total: results.length };
+  const failures = results
+    .map((r, i) => ({ id: userIds[i], result: r }))
+    .filter(x => x.result.status === 'rejected')
+    .map(x => `${x.id}: ${x.result.reason.message.slice(0, 150)}`);
+  return { succeeded, failed: results.length - succeeded, total: results.length, failures };
 }
 
 const ADMIN_HELP_TEXT = `**Sigma Hideout — Admin Commands**
@@ -649,9 +752,13 @@ Start/End times are entered as \`YYYY-MM-DD HH:MM\` and always treated as **UTC*
 **Gallery**
 • Go to sigmahideout.de/gallery/admin and log in with Discord — it unlocks automatically since you're on the admin list. From there you can delete any gallery upload.
 
+**Posting to the announcements channel directly**
+• \`/talk\` — opens a popup with one text box. Whatever you type gets posted to the announcements channel exactly as-is, no pings (same as event announcements).
+
 **Keeping other admins in the loop**
 • \`/admin_help\` — resends this exact guide to every current admin (including you).
 • \`/notify_admins {message}\` — DMs every current admin with a custom update, e.g. if these commands change in the future.
+• \`/notify_history {count?}\` — shows the last several \`/notify_admins\` messages that were sent (default 10, max 25), so you can catch up on what you missed.
 
 Access is checked live, every time — if you're ever removed from the admin list, all of this stops working immediately, no action needed on your end.`;
 
@@ -677,7 +784,7 @@ async function checkForNewAdmins(env) {
   await env.GALLERY_KV.put(KNOWN_ADMINS_KEY, JSON.stringify(currentAdmins));
 }
 
-async function handleSlashCommand(interaction, env) {
+async function handleSlashCommand(interaction, env, ctx) {
   const commandName = interaction.data && interaction.data.name;
   const userId = getDiscordUserId(interaction);
 
@@ -722,11 +829,25 @@ async function handleSlashCommand(interaction, env) {
     }
   }
 
+  if (commandName === 'talk') {
+    if (!isAuthorizedAdmin(userId, env)) return ephemeral("You don't have permission to use this.");
+    return buildTalkModal();
+  }
+
   if (commandName === 'admin_help') {
     if (!isAuthorizedAdmin(userId, env)) return ephemeral("You don't have permission to use this.");
     const admins = getAdminUserIds(env);
-    const { succeeded, failed, total } = await dmAdmins(admins, ADMIN_HELP_TEXT, env);
-    return ephemeral(`Sent to ${succeeded}/${total} admins.` + (failed ? ` (${failed} couldn't be reached — they may have DMs closed to this server.)` : ''));
+    const applicationId = interaction.application_id;
+    const interactionToken = interaction.token;
+
+    ctx.waitUntil((async () => {
+      const { succeeded, failed, total, failures } = await dmAdmins(admins, ADMIN_HELP_TEXT, env);
+      let msg = `Sent to ${succeeded}/${total} admins.`;
+      if (failed) msg += `\n\n${failed} failed:\n` + failures.map(f => `• ${f}`).join('\n');
+      await editDeferredResponse(applicationId, interactionToken, msg);
+    })());
+
+    return deferred();
   }
 
   if (commandName === 'notify_admins') {
@@ -736,8 +857,38 @@ async function handleSlashCommand(interaction, env) {
     if (!message) return ephemeral('Message cannot be empty.');
 
     const admins = getAdminUserIds(env);
-    const { succeeded, failed, total } = await dmAdmins(admins, `📢 **Admin update:**\n${message}`, env);
-    return ephemeral(`Sent to ${succeeded}/${total} admins.` + (failed ? ` (${failed} couldn't be reached.)` : ''));
+    const applicationId = interaction.application_id;
+    const interactionToken = interaction.token;
+    const senderName = getDiscordUsername(interaction);
+
+    ctx.waitUntil((async () => {
+      await logNotifyMessage(senderName, userId, message, env);
+      const { succeeded, failed, total, failures } = await dmAdmins(admins, `📢 **Admin update:**\n${message}`, env);
+      let resultMsg = `Sent to ${succeeded}/${total} admins.`;
+      if (failed) resultMsg += `\n\n${failed} failed:\n` + failures.map(f => `• ${f}`).join('\n');
+      await editDeferredResponse(applicationId, interactionToken, resultMsg);
+    })());
+
+    return deferred();
+  }
+
+  if (commandName === 'notify_history') {
+    if (!isAuthorizedAdmin(userId, env)) return ephemeral("You don't have permission to use this.");
+    const countOpt = (interaction.data.options || []).find(o => o.name === 'count');
+    const limit = countOpt ? Math.max(1, Math.min(25, parseInt(countOpt.value, 10) || 10)) : 10;
+
+    const history = await listNotifyHistory(env, limit);
+    if (history.length === 0) return ephemeral('No /notify_admins messages have been sent yet.');
+
+    const lines = history.map(entry => {
+      const when = new Date(entry.sentAt).toISOString().slice(0, 16).replace('T', ' ');
+      return `**${when} UTC** — ${entry.senderName}:\n${entry.message}`;
+    });
+
+    let content = `**Last ${history.length} /notify_admins message(s):**\n\n` + lines.join('\n\n');
+    if (content.length > 1900) content = content.slice(0, 1900) + '\n\n…(truncated)';
+
+    return ephemeral(content);
   }
 
   return ephemeral('Unknown command.');
@@ -749,6 +900,15 @@ async function handleModalSubmit(interaction, env) {
 
   const customId = interaction.data.custom_id;
   const fields = extractModalFields(interaction);
+
+  if (customId === 'talk_modal') {
+    const message = (fields.message || '').trim();
+    if (!message) return ephemeral('Message cannot be empty.');
+    const ok = await announceToChannel(message, env);
+    return ephemeral(ok
+      ? 'Sent to the announcements channel.'
+      : "Could not post that — check DISCORD_ANNOUNCEMENTS_CHANNEL_ID is set correctly and the bot has permission to post there.");
+  }
 
   const startTime = parseAdminDate(fields.start_time);
   const endTime = parseAdminDate(fields.end_time);
@@ -799,7 +959,7 @@ async function handleModalSubmit(interaction, env) {
   return ephemeral('Unknown submission.');
 }
 
-async function handleDiscordInteraction(request, env) {
+async function handleDiscordInteraction(request, env, ctx) {
   const bodyText = await request.text();
 
   const validSignature = await verifyDiscordSignature(request, bodyText, env);
@@ -812,7 +972,7 @@ async function handleDiscordInteraction(request, env) {
   }
 
   if (interaction.type === DISCORD_INTERACTION_APPLICATION_COMMAND) {
-    return await handleSlashCommand(interaction, env);
+    return await handleSlashCommand(interaction, env, ctx);
   }
 
   if (interaction.type === DISCORD_INTERACTION_MODAL_SUBMIT) {
@@ -867,7 +1027,7 @@ export default {
       }
 
       if (pathname === '/api/discord/interactions' && request.method === 'POST') {
-        return await handleDiscordInteraction(request, env);
+        return await handleDiscordInteraction(request, env, ctx);
       }
     } catch (err) {
       return jsonResponse({ error: 'Server error: ' + err.message }, 500);
