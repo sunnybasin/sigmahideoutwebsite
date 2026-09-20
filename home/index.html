@@ -429,6 +429,30 @@
       color: var(--text-dim);
       margin: 0;
     }
+    .event-preview-item {
+      margin-top: 0.6rem;
+    }
+    .event-preview-item .ep-name {
+      font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
+      font-size: 1.1rem;
+      color: var(--text);
+    }
+    .event-preview-item .ep-when {
+      font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
+      font-size: 0.85rem;
+      color: var(--ember-dim);
+    }
+    .event-preview-link {
+      display: inline-block;
+      margin-top: 0.8rem;
+      font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
+      font-size: 0.85rem;
+      color: var(--text-dim);
+      text-decoration: underline;
+    }
+    .event-preview-link:hover {
+      color: var(--ember-dim);
+    }
     .quicklinks {
       width: 100%;
       display: flex;
@@ -600,7 +624,9 @@
       <img src="/sunny3.png" alt="Confused cat mascot">
       <div class="wip-text">
         <div style="font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif; font-size: 0.85rem; letter-spacing: 0.1em; text-transform: uppercase; color: var(--text-dim);">Upcoming Events</div>
-        <p>Sorry! This is a work in progress!</p>
+        <div id="eventsPreview">
+          <p style="font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif; color: var(--text-dim); margin: 0.4rem 0 0 0;">Loading...</p>
+        </div>
       </div>
     </div>
   </div>
@@ -638,6 +664,50 @@
       el.innerHTML = '<a href="/api/auth/login" class="nav-login-btn">Log in with Discord</a>';
     }
   }).catch(() => {});
+})();
+</script>
+<script>
+(function () {
+  const previewEl = document.getElementById('eventsPreview');
+  if (!previewEl) return;
+
+  function escapeHtml(str) {
+    const div = document.createElement('div');
+    div.textContent = str;
+    return div.innerHTML;
+  }
+
+  function formatShort(iso) {
+    return new Date(iso).toLocaleString(undefined, {
+      month: 'short', day: 'numeric', hour: 'numeric', minute: '2-digit'
+    });
+  }
+
+  fetch('/api/events').then(r => r.json()).then(events => {
+    if (!events.length) {
+      previewEl.innerHTML = '<p style="font-family: -apple-system, BlinkMacSystemFont, \'Segoe UI\', sans-serif; color: var(--text-dim); margin: 0.4rem 0 0 0;">Nothing on the calendar yet — check back soon!</p>';
+      return;
+    }
+
+    previewEl.innerHTML = '';
+    events.slice(0, 2).forEach(ev => {
+      const item = document.createElement('div');
+      item.className = 'event-preview-item';
+      item.innerHTML = `
+        <div class="ep-name">${escapeHtml(ev.name)}</div>
+        <div class="ep-when">${escapeHtml(formatShort(ev.start))}</div>
+      `;
+      previewEl.appendChild(item);
+    });
+
+    const link = document.createElement('a');
+    link.href = '/events';
+    link.className = 'event-preview-link';
+    link.textContent = 'See all events →';
+    previewEl.appendChild(link);
+  }).catch(() => {
+    previewEl.innerHTML = '<p style="font-family: -apple-system, BlinkMacSystemFont, \'Segoe UI\', sans-serif; color: var(--text-dim); margin: 0.4rem 0 0 0;">Could not load events right now.</p>';
+  });
 })();
 </script>
 <script>
