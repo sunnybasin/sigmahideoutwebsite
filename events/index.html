@@ -1,1 +1,390 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Sigma Hideout — Events</title>
+  <link rel="icon" href="/favicon.ico" type="image/x-icon">
 
+  <meta property="og:title" content="Sigma Hideout — Events">
+  <meta property="og:description" content="Upcoming events for the Sigma Hideout crew.">
+  <meta property="og:image" content="https://sigmahideout.de/preview.jpg">
+  <meta property="og:url" content="https://sigmahideout.de/events">
+  <meta property="og:type" content="website">
+
+  <meta name="twitter:card" content="summary_large_image">
+  <meta name="twitter:title" content="Sigma Hideout — Events">
+  <meta name="twitter:description" content="Upcoming events for the Sigma Hideout crew.">
+  <meta name="twitter:image" content="https://sigmahideout.de/preview.jpg">
+  <style>
+    :root {
+      --bg: #0f0c0c;
+      --bg-warm: #000000;
+      --ember: #400303;
+      --ember-dim: #b43838;
+      --teal: #3c5a52;
+      --text: #ecd9d9;
+      --text-dim: #918787;
+      --card-bg: rgba(255, 255, 255, 0.03);
+      --card-border: rgba(180, 56, 56, 0.25);
+    }
+    * { box-sizing: border-box; }
+    html, body {
+      margin: 0;
+      padding: 0;
+      height: 100%;
+      background: radial-gradient(ellipse at 50% 20%, var(--bg-warm), var(--bg) 70%);
+      color: var(--text);
+      font-family: 'Georgia', 'Iowan Old Style', serif;
+      overflow-x: hidden;
+      scrollbar-width: thin;
+      scrollbar-color: var(--ember-dim) var(--bg);
+    }
+    ::-webkit-scrollbar { width: 12px; }
+    ::-webkit-scrollbar-track { background: var(--bg); }
+    ::-webkit-scrollbar-thumb { background: var(--ember); border: 2px solid var(--bg); border-radius: 999px; }
+    ::-webkit-scrollbar-thumb:hover { background: var(--ember-dim); }
+    canvas#particles {
+      position: fixed;
+      inset: 0;
+      z-index: 0;
+      display: block;
+    }
+    nav {
+      position: relative;
+      z-index: 2;
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      padding: 1.4rem 8vw;
+      font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
+    }
+    nav .brand {
+      font-family: 'Georgia', 'Iowan Old Style', serif;
+      font-size: 1.15rem;
+      color: var(--text);
+      display: flex;
+      align-items: center;
+      gap: 0.6rem;
+    }
+    nav .brand img { width: 24px; height: 24px; }
+    nav .brand .fire { color: var(--ember-dim); }
+    nav ul {
+      list-style: none;
+      display: flex;
+      gap: 2rem;
+      margin: 0;
+      padding: 0;
+    }
+    nav a {
+      color: var(--text-dim);
+      text-decoration: none;
+      font-size: 0.95rem;
+      transition: color 0.15s ease;
+    }
+    nav a:hover { color: var(--ember-dim); }
+    .nav-right {
+      display: flex;
+      align-items: center;
+      gap: 1.8rem;
+      flex-wrap: wrap;
+    }
+    .nav-auth {
+      font-size: 0.85rem;
+      color: var(--text-dim);
+      white-space: nowrap;
+    }
+    .nav-login-btn {
+      display: inline-flex;
+      align-items: center;
+      gap: 0.4rem;
+      background: #5865F2;
+      color: #fff;
+      text-decoration: none;
+      padding: 0.45rem 1rem;
+      border-radius: 999px;
+      font-size: 0.85rem;
+      font-weight: 600;
+      transition: filter 0.15s ease;
+    }
+    .nav-login-btn:hover { filter: brightness(1.1); }
+    .nav-avatar {
+      width: 32px;
+      height: 32px;
+      border-radius: 50%;
+      display: block;
+      border: 1px solid var(--ember-dim);
+    }
+    main {
+      position: relative;
+      z-index: 1;
+      min-height: calc(100vh - 70px);
+      display: flex;
+      flex-direction: column;
+      align-items: flex-start;
+      padding: 6vh 8vw 10vh;
+      width: 100%;
+      margin: 0 auto;
+    }
+    .badge {
+      font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
+      font-size: 0.72rem;
+      letter-spacing: 0.02em;
+      color: var(--text);
+      border: 1px solid var(--ember-dim);
+      padding: 0.25rem 0.7rem;
+      border-radius: 999px;
+      margin-bottom: 1.6rem;
+      background: rgba(255, 19, 19, 0.8);
+    }
+    h1 {
+      font-size: clamp(2.2rem, 6vw, 3.4rem);
+      line-height: 1.02;
+      margin: 0 0 0.6rem 0;
+      font-weight: 400;
+      color: var(--text);
+      text-shadow: 0 0 40px rgba(255, 19, 19, 0.8);
+    }
+    p.tagline {
+      font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
+      font-size: 1.02rem;
+      line-height: 1.6;
+      color: var(--text-dim);
+      max-width: 60ch;
+      margin: 0 0 2.2rem 0;
+    }
+    .fire { color: var(--ember-dim); }
+    .divider {
+      width: 100%;
+      border: none;
+      border-top: 1px solid rgba(180, 56, 56, 0.35);
+      margin: 0 0 2.4rem 0;
+    }
+    footer {
+      position: relative;
+      z-index: 2;
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      gap: 1rem;
+      padding: 2.5rem 8vw;
+      border-top: 1px solid rgba(180, 56, 56, 0.25);
+      font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
+    }
+    footer ul {
+      list-style: none;
+      display: flex;
+      gap: 2rem;
+      margin: 0;
+      padding: 0;
+    }
+    footer a {
+      color: var(--text-dim);
+      text-decoration: none;
+      font-size: 0.9rem;
+      transition: color 0.15s ease;
+    }
+    footer a:hover { color: var(--ember-dim); }
+    footer .copyright {
+      font-size: 0.8rem;
+      color: var(--text-dim);
+      opacity: 0.7;
+    }
+    @media (max-width: 700px) {
+      footer ul { flex-wrap: wrap; justify-content: center; gap: 1.2rem; }
+      nav { flex-direction: column; gap: 0.8rem; padding: 1.2rem 6vw; }
+      nav ul { gap: 1.2rem; }
+    }
+    .fade-in {
+      opacity: 0;
+      transform: translateY(24px);
+      transition: opacity 0.7s ease, transform 0.7s ease;
+    }
+    .fade-in.is-visible { opacity: 1; transform: translateY(0); }
+    @media (prefers-reduced-motion: reduce) {
+      .fade-in { opacity: 1; transform: none; transition: none; }
+    }
+
+    /* ---- Event list ---- */
+    .event-list {
+      width: 100%;
+      display: flex;
+      flex-direction: column;
+      gap: 1.2rem;
+    }
+    .event-card {
+      width: 100%;
+      background: var(--card-bg);
+      border: 1px solid var(--card-border);
+      border-radius: 16px;
+      padding: 1.6rem 1.8rem;
+      display: flex;
+      flex-direction: column;
+      gap: 0.5rem;
+    }
+    .event-card .event-name {
+      font-size: 1.3rem;
+      color: var(--text);
+      margin: 0;
+    }
+    .event-card .event-when {
+      font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
+      font-size: 0.85rem;
+      color: var(--ember-dim);
+      font-weight: 600;
+      letter-spacing: 0.02em;
+    }
+    .event-card .event-location {
+      font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
+      font-size: 0.85rem;
+      color: var(--text-dim);
+    }
+    .event-card .event-description {
+      font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
+      font-size: 0.95rem;
+      line-height: 1.5;
+      color: var(--text-dim);
+      margin-top: 0.4rem;
+      white-space: pre-wrap;
+    }
+    .empty-state {
+      color: var(--text-dim);
+      font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
+      font-size: 0.95rem;
+      padding: 2rem 0;
+    }
+  </style>
+</head>
+<body>
+<canvas id="particles"></canvas>
+
+<nav>
+  <span class="brand"><img src="/favicon.ico" alt="">sigma <span class="fire">hideout</span></span>
+  <div class="nav-right">
+    <ul>
+      <li><a href="/home">home</a></li>
+      <li><a href="/events">events</a></li>
+      <li><a href="/gallery">gallery</a></li>
+      <li><a href="/more">more</a></li>
+    </ul>
+    <span id="navAuth" class="nav-auth"></span>
+  </div>
+</nav>
+
+<main>
+  <span class="badge fade-in">events</span>
+  <h1 class="fade-in">Upcoming <span class="fire">Events</span></h1>
+  <p class="tagline fade-in">
+    Whatever's coming up for the crew, straight from Discord's own Events tab.
+  </p>
+
+  <hr class="divider fade-in">
+
+  <div class="event-list fade-in" id="eventList"></div>
+  <div class="empty-state fade-in" id="emptyState" style="display:none;">
+    Nothing on the calendar right now — check back later.
+  </div>
+</main>
+
+<footer class="fade-in">
+  <ul>
+    <li><a href="/home">home</a></li>
+    <li><a href="/events">events</a></li>
+    <li><a href="/gallery">gallery</a></li>
+    <li><a href="/more">more</a></li>
+  </ul>
+  <div class="copyright">&copy; <span id="footer-year"></span> Sigma Hideout. All rights reserved.</div>
+</footer>
+
+<script src="/particles.js?v=2"></script>
+<script>
+  document.getElementById('footer-year').textContent = new Date().getFullYear();
+
+  const observer = new IntersectionObserver((entries) => {
+    entries.forEach(entry => {
+      if (entry.isIntersecting) {
+        entry.target.classList.add('is-visible');
+        observer.unobserve(entry.target);
+      }
+    });
+  }, { threshold: 0.15, rootMargin: '0px 0px -50px 0px' });
+
+  document.querySelectorAll('.fade-in').forEach(el => observer.observe(el));
+</script>
+<script>
+(function () {
+  const el = document.getElementById('navAuth');
+  if (!el) return;
+  fetch('/api/auth/me').then(r => r.json()).then(data => {
+    if (data.loggedIn) {
+      el.innerHTML = '';
+      if (data.avatar) {
+        const img = document.createElement('img');
+        img.src = data.avatar;
+        img.alt = data.username;
+        img.title = data.username;
+        img.className = 'nav-avatar';
+        el.appendChild(img);
+      } else {
+        el.textContent = data.username;
+      }
+    } else {
+      el.innerHTML = '<a href="/api/auth/login" class="nav-login-btn">Log in with Discord</a>';
+    }
+  }).catch(() => {});
+})();
+</script>
+<script>
+(function () {
+  const eventList = document.getElementById('eventList');
+  const emptyState = document.getElementById('emptyState');
+
+  function escapeHtml(str) {
+    const div = document.createElement('div');
+    div.textContent = str;
+    return div.innerHTML;
+  }
+
+  function formatWhen(startIso, endIso) {
+    const start = new Date(startIso);
+    const opts = { weekday: 'long', year: 'numeric', month: 'long', day: 'numeric', hour: 'numeric', minute: '2-digit' };
+    let text = start.toLocaleString(undefined, opts);
+    if (endIso) {
+      const end = new Date(endIso);
+      const sameDay = start.toDateString() === end.toDateString();
+      const endOpts = sameDay ? { hour: 'numeric', minute: '2-digit' } : opts;
+      text += ' – ' + end.toLocaleString(undefined, endOpts);
+    }
+    return text;
+  }
+
+  async function loadEvents() {
+    try {
+      const res = await fetch('/api/events');
+      const events = await res.json();
+
+      eventList.innerHTML = '';
+      emptyState.style.display = events.length ? 'none' : 'block';
+
+      events.forEach(ev => {
+        const card = document.createElement('div');
+        card.className = 'event-card';
+        card.innerHTML = `
+          <h2 class="event-name">${escapeHtml(ev.name)}</h2>
+          <div class="event-when">${escapeHtml(formatWhen(ev.start, ev.end))}</div>
+          ${ev.location ? `<div class="event-location">📍 ${escapeHtml(ev.location)}</div>` : ''}
+          ${ev.description ? `<div class="event-description">${escapeHtml(ev.description)}</div>` : ''}
+        `;
+        eventList.appendChild(card);
+      });
+    } catch (err) {
+      emptyState.style.display = 'block';
+      emptyState.textContent = 'Could not load events. Try refreshing.';
+    }
+  }
+
+  loadEvents();
+})();
+</script>
+</body>
+</html>
