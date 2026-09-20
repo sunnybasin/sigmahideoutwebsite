@@ -391,12 +391,39 @@ async function discordApiRequest(path, options, env) {
 
 // ---- Server events (Discord's native Guild Scheduled Events) ----
 // Discord itself is the source of truth — nothing about events is stored
-// in KV. The website reads the list back out via GET /api/events.
+// in KV, EXCEPT a short-lived "last known good" snapshot (EVENTS_CACHE_KEY
+// below), used only as a fallback if a live request to Discord fails.
+// Without this, a single transient failure (rate limit, network blip)
+// would make the site briefly show "no events" even though real events
+// exist — this makes that show the last successful list instead.
+
+const EVENTS_CACHE_KEY = 'events-cache';
+const EVENTS_CACHE_TTL_SECONDS = 600; // how long a fallback snapshot stays usable
+
+async function fetchScheduledEventsOnce(env) {
+  const res = await discordApiRequest(`/guilds/${env.DISCORD_GUILD_ID}/scheduled-events`, { method: 'GET' }, env);
+  if (!res.ok) throw new Error(`Discord API returned ${res.status}`);
+  return res.json();
+}
 
 async function listScheduledEvents(env) {
-  const res = await discordApiRequest(`/guilds/${env.DISCORD_GUILD_ID}/scheduled-events`, { method: 'GET' }, env);
-  if (!res.ok) return [];
-  return res.json();
+  try {
+    const data = await fetchScheduledEventsOnce(env);
+    // Success — remember this as the fallback for next time something goes wrong.
+    await env.GALLERY_KV.put(EVENTS_CACHE_KEY, JSON.stringify(data), { expirationTtl: EVENTS_CACHE_TTL_SECONDS });
+    return data;
+  } catch {
+    // First failure — try once more immediately, transient blips often clear right away.
+    try {
+      const data = await fetchScheduledEventsOnce(env);
+      await env.GALLERY_KV.put(EVENTS_CACHE_KEY, JSON.stringify(data), { expirationTtl: EVENTS_CACHE_TTL_SECONDS });
+      return data;
+    } catch {
+      // Still failing — fall back to the last successful list rather than showing nothing.
+      const cached = await env.GALLERY_KV.get(EVENTS_CACHE_KEY);
+      return cached ? JSON.parse(cached) : [];
+    }
+  }
 }
 
 async function findEventByName(name, env) {
