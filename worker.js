@@ -484,14 +484,15 @@ function discordTimestamp(date, style) {
 }
 
 async function announceToChannel(content, env) {
-  if (!env.DISCORD_ANNOUNCEMENTS_CHANNEL_ID) return; // not configured — skip silently
+  if (!env.DISCORD_ANNOUNCEMENTS_CHANNEL_ID) return false; // not configured
   try {
-    await discordApiRequest(`/channels/${env.DISCORD_ANNOUNCEMENTS_CHANNEL_ID}/messages`, {
+    const res = await discordApiRequest(`/channels/${env.DISCORD_ANNOUNCEMENTS_CHANNEL_ID}/messages`, {
       method: 'POST',
       body: JSON.stringify({ content, allowed_mentions: { parse: [] } })
     }, env);
+    return res.ok;
   } catch {
-    // An announcement failing shouldn't undo the event change itself.
+    return false;
   }
 }
 
@@ -537,6 +538,19 @@ function buildEventModal(customId, title, prefill) {
         textInputRow('start_time', 'Start (YYYY-MM-DD HH:MM, UTC)', 1, true, prefill.start_time),
         textInputRow('end_time', 'End (YYYY-MM-DD HH:MM, UTC)', 1, true, prefill.end_time),
         textInputRow('description', 'Description', 2, false, prefill.description)
+      ]
+    }
+  });
+}
+
+function buildTalkModal() {
+  return jsonResponse({
+    type: DISCORD_RESPONSE_MODAL,
+    data: {
+      custom_id: 'talk_modal',
+      title: 'Send a message',
+      components: [
+        textInputRow('message', 'Message', 2, true)
       ]
     }
   });
@@ -649,9 +663,47 @@ function getDiscordUserId(interaction) {
     || null;
 }
 
+function getDiscordUsername(interaction) {
+  const user = (interaction.member && interaction.member.user) || interaction.user;
+  if (!user) return 'Unknown';
+  return user.global_name || user.username || 'Unknown';
+}
+
 function getAdminUserIds(env) {
   if (!env.DISCORD_ADMIN_USER_IDS) return [];
   return env.DISCORD_ADMIN_USER_IDS.split(',').map(id => id.trim()).filter(Boolean);
+}
+
+// ---- Notify-admins history log ----
+
+const NOTIFY_LOG_PREFIX = 'notify-log:';
+const NOTIFY_LOG_TTL_SECONDS = 60 * 60 * 24 * 180; // keep 180 days of history
+
+async function logNotifyMessage(senderName, senderId, message, env) {
+  const key = `${NOTIFY_LOG_PREFIX}${Date.now()}-${crypto.randomUUID()}`;
+  await env.GALLERY_KV.put(key, JSON.stringify({
+    senderName,
+    senderId,
+    message,
+    sentAt: Date.now()
+  }), { expirationTtl: NOTIFY_LOG_TTL_SECONDS });
+}
+
+async function listNotifyHistory(env, limit) {
+  const entries = [];
+  let cursor;
+  do {
+    const page = await env.GALLERY_KV.list({ prefix: NOTIFY_LOG_PREFIX, cursor });
+    cursor = page.cursor;
+    const values = await Promise.all(page.keys.map(k => env.GALLERY_KV.get(k.name)));
+    for (const v of values) {
+      if (v) entries.push(JSON.parse(v));
+    }
+    if (page.list_complete) break;
+  } while (cursor);
+
+  entries.sort((a, b) => b.sentAt - a.sentAt);
+  return entries.slice(0, limit);
 }
 
 function isAuthorizedAdmin(userId, env) {
@@ -700,9 +752,13 @@ Start/End times are entered as \`YYYY-MM-DD HH:MM\` and always treated as **UTC*
 **Gallery**
 • Go to sigmahideout.de/gallery/admin and log in with Discord — it unlocks automatically since you're on the admin list. From there you can delete any gallery upload.
 
+**Posting to the announcements channel directly**
+• \`/talk\` — opens a popup with one text box. Whatever you type gets posted to the announcements channel exactly as-is, no pings (same as event announcements).
+
 **Keeping other admins in the loop**
 • \`/admin_help\` — resends this exact guide to every current admin (including you).
 • \`/notify_admins {message}\` — DMs every current admin with a custom update, e.g. if these commands change in the future.
+• \`/notify_history {count?}\` — shows the last several \`/notify_admins\` messages that were sent (default 10, max 25), so you can catch up on what you missed.
 
 Access is checked live, every time — if you're ever removed from the admin list, all of this stops working immediately, no action needed on your end.`;
 
@@ -773,6 +829,11 @@ async function handleSlashCommand(interaction, env, ctx) {
     }
   }
 
+  if (commandName === 'talk') {
+    if (!isAuthorizedAdmin(userId, env)) return ephemeral("You don't have permission to use this.");
+    return buildTalkModal();
+  }
+
   if (commandName === 'admin_help') {
     if (!isAuthorizedAdmin(userId, env)) return ephemeral("You don't have permission to use this.");
     const admins = getAdminUserIds(env);
@@ -798,8 +859,10 @@ async function handleSlashCommand(interaction, env, ctx) {
     const admins = getAdminUserIds(env);
     const applicationId = interaction.application_id;
     const interactionToken = interaction.token;
+    const senderName = getDiscordUsername(interaction);
 
     ctx.waitUntil((async () => {
+      await logNotifyMessage(senderName, userId, message, env);
       const { succeeded, failed, total, failures } = await dmAdmins(admins, `📢 **Admin update:**\n${message}`, env);
       let resultMsg = `Sent to ${succeeded}/${total} admins.`;
       if (failed) resultMsg += `\n\n${failed} failed:\n` + failures.map(f => `• ${f}`).join('\n');
@@ -807,6 +870,25 @@ async function handleSlashCommand(interaction, env, ctx) {
     })());
 
     return deferred();
+  }
+
+  if (commandName === 'notify_history') {
+    if (!isAuthorizedAdmin(userId, env)) return ephemeral("You don't have permission to use this.");
+    const countOpt = (interaction.data.options || []).find(o => o.name === 'count');
+    const limit = countOpt ? Math.max(1, Math.min(25, parseInt(countOpt.value, 10) || 10)) : 10;
+
+    const history = await listNotifyHistory(env, limit);
+    if (history.length === 0) return ephemeral('No /notify_admins messages have been sent yet.');
+
+    const lines = history.map(entry => {
+      const when = new Date(entry.sentAt).toISOString().slice(0, 16).replace('T', ' ');
+      return `**${when} UTC** — ${entry.senderName}:\n${entry.message}`;
+    });
+
+    let content = `**Last ${history.length} /notify_admins message(s):**\n\n` + lines.join('\n\n');
+    if (content.length > 1900) content = content.slice(0, 1900) + '\n\n…(truncated)';
+
+    return ephemeral(content);
   }
 
   return ephemeral('Unknown command.');
@@ -818,6 +900,15 @@ async function handleModalSubmit(interaction, env) {
 
   const customId = interaction.data.custom_id;
   const fields = extractModalFields(interaction);
+
+  if (customId === 'talk_modal') {
+    const message = (fields.message || '').trim();
+    if (!message) return ephemeral('Message cannot be empty.');
+    const ok = await announceToChannel(message, env);
+    return ephemeral(ok
+      ? 'Sent to the announcements channel.'
+      : "Could not post that — check DISCORD_ANNOUNCEMENTS_CHANNEL_ID is set correctly and the bot has permission to post there.");
+  }
 
   const startTime = parseAdminDate(fields.start_time);
   const endTime = parseAdminDate(fields.end_time);
