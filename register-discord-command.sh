@@ -5,14 +5,14 @@
 # - /create_event, /edit_event, /delete_event, /admin_help, /notify_admins
 #   are all registered as GUILD commands (scoped to your one server via
 #   DISCORD_GUILD_ID). Guild commands show up instantly and only make
-#   sense in a server anyway — no reason to make them global.
+#   sense in a server anyway - no reason to make them global.
 # - /adminpassword (retired, but harmless to leave registered) stays a
 #   GLOBAL command with DM support, since that's what it was set up as
 #   originally.
 #
 # This script reads its credentials from environment variables rather
 # than having them hardcoded, so it's safe to commit this file to your
-# repo — just don't commit the values themselves anywhere.
+# repo - just don't commit the values themselves anywhere.
 
 if [ -z "$DISCORD_APPLICATION_ID" ] || [ -z "$DISCORD_BOT_TOKEN" ] || [ -z "$DISCORD_GUILD_ID" ]; then
   echo "Missing environment variables. Run it like this instead:"
@@ -30,12 +30,12 @@ curl -s -X PUT \
   -d '[
     {
       "name": "create_event",
-      "description": "Create a server event (opens a popup form) — admins only",
+      "description": "Create a server event (opens a popup form) - admins only",
       "type": 1
     },
     {
       "name": "edit_event",
-      "description": "Edit an existing server event (opens a popup form) — admins only",
+      "description": "Edit an existing server event (opens a popup form) - admins only",
       "type": 1,
       "options": [
         {
@@ -48,7 +48,7 @@ curl -s -X PUT \
     },
     {
       "name": "delete_event",
-      "description": "Delete a server event — admins only",
+      "description": "Delete a server event - admins only",
       "type": 1,
       "options": [
         {
@@ -61,12 +61,12 @@ curl -s -X PUT \
     },
     {
       "name": "admin_help",
-      "description": "DM every admin the how-to-use guide for admin commands — admins only",
+      "description": "DM every admin the how-to-use guide for admin commands - admins only",
       "type": 1
     },
     {
       "name": "notify_admins",
-      "description": "DM every admin a custom update message — admins only",
+      "description": "DM every admin a custom update message - admins only",
       "type": 1,
       "options": [
         {
@@ -88,7 +88,7 @@ curl -s -X PUT \
   -d '[
     {
       "name": "adminpassword",
-      "description": "Retired — log in with Discord at /gallery/admin instead",
+      "description": "Retired - log in with Discord at /gallery/admin instead",
       "type": 1,
       "integration_types": [0],
       "contexts": [0, 1]
