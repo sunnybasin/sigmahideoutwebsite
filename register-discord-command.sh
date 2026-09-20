@@ -2,10 +2,10 @@
 # Run this ONCE after your Discord app is set up, to register all of the
 # site's slash commands.
 #
-# - /create_event, /edit_event, /delete_event are registered as GUILD
-#   commands (scoped to your one server via DISCORD_GUILD_ID). Guild
-#   commands show up instantly and only make sense in a server anyway —
-#   no reason to make them global.
+# - /create_event, /edit_event, /delete_event, /admin_help, /notify_admins
+#   are all registered as GUILD commands (scoped to your one server via
+#   DISCORD_GUILD_ID). Guild commands show up instantly and only make
+#   sense in a server anyway — no reason to make them global.
 # - /adminpassword (retired, but harmless to leave registered) stays a
 #   GLOBAL command with DM support, since that's what it was set up as
 #   originally.
@@ -22,7 +22,7 @@ if [ -z "$DISCORD_APPLICATION_ID" ] || [ -z "$DISCORD_BOT_TOKEN" ] || [ -z "$DIS
   exit 1
 fi
 
-echo "Registering guild commands (create_event, edit_event, delete_event)..."
+echo "Registering guild commands (create_event, edit_event, delete_event, admin_help, notify_admins)..."
 curl -s -X PUT \
   "https://discord.com/api/v10/applications/${DISCORD_APPLICATION_ID}/guilds/${DISCORD_GUILD_ID}/commands" \
   -H "Authorization: Bot ${DISCORD_BOT_TOKEN}" \
@@ -54,6 +54,24 @@ curl -s -X PUT \
         {
           "name": "name",
           "description": "The exact name of the event to delete",
+          "type": 3,
+          "required": true
+        }
+      ]
+    },
+    {
+      "name": "admin_help",
+      "description": "DM every admin the how-to-use guide for admin commands — admins only",
+      "type": 1
+    },
+    {
+      "name": "notify_admins",
+      "description": "DM every admin a custom update message — admins only",
+      "type": 1,
+      "options": [
+        {
+          "name": "message",
+          "description": "The message to send to every admin",
           "type": 3,
           "required": true
         }
