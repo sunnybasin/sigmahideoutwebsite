@@ -553,6 +553,25 @@ function ephemeral(content) {
   });
 }
 
+function deferred() {
+  return jsonResponse({
+    type: DISCORD_RESPONSE_DEFERRED,
+    data: { flags: DISCORD_EPHEMERAL_FLAG }
+  });
+}
+
+// Edits the "thinking..." placeholder left by a deferred response, once
+// background work (like DMing several people) finishes. This uses the
+// interaction's own token, not the bot token — no Authorization header
+// needed, this endpoint is self-authorizing.
+async function editDeferredResponse(applicationId, interactionToken, content) {
+  await fetch(`https://discord.com/api/v10/webhooks/${applicationId}/${interactionToken}/messages/@original`, {
+    method: 'PATCH',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({ content })
+  });
+}
+
 // ---- Discord bot interactions ----
 // Discord sends interactions as a signed HTTP POST — no persistent bot
 // process needed. We verify the Ed25519 signature, then respond.
@@ -592,6 +611,7 @@ const DISCORD_INTERACTION_MODAL_SUBMIT = 5;
 const DISCORD_RESPONSE_PONG = 1;
 const DISCORD_RESPONSE_CHANNEL_MESSAGE = 4;
 const DISCORD_RESPONSE_MODAL = 9;
+const DISCORD_RESPONSE_DEFERRED = 5; // DEFERRED_CHANNEL_MESSAGE_WITH_SOURCE — "thinking..." placeholder
 const DISCORD_EPHEMERAL_FLAG = 64;
 
 function getDiscordUserId(interaction) {
@@ -681,7 +701,7 @@ async function checkForNewAdmins(env) {
   await env.GALLERY_KV.put(KNOWN_ADMINS_KEY, JSON.stringify(currentAdmins));
 }
 
-async function handleSlashCommand(interaction, env) {
+async function handleSlashCommand(interaction, env, ctx) {
   const commandName = interaction.data && interaction.data.name;
   const userId = getDiscordUserId(interaction);
 
@@ -729,10 +749,17 @@ async function handleSlashCommand(interaction, env) {
   if (commandName === 'admin_help') {
     if (!isAuthorizedAdmin(userId, env)) return ephemeral("You don't have permission to use this.");
     const admins = getAdminUserIds(env);
-    const { succeeded, failed, total, failures } = await dmAdmins(admins, ADMIN_HELP_TEXT, env);
-    let msg = `Sent to ${succeeded}/${total} admins.`;
-    if (failed) msg += `\n\n${failed} failed:\n` + failures.map(f => `• ${f}`).join('\n');
-    return ephemeral(msg);
+    const applicationId = interaction.application_id;
+    const interactionToken = interaction.token;
+
+    ctx.waitUntil((async () => {
+      const { succeeded, failed, total, failures } = await dmAdmins(admins, ADMIN_HELP_TEXT, env);
+      let msg = `Sent to ${succeeded}/${total} admins.`;
+      if (failed) msg += `\n\n${failed} failed:\n` + failures.map(f => `• ${f}`).join('\n');
+      await editDeferredResponse(applicationId, interactionToken, msg);
+    })());
+
+    return deferred();
   }
 
   if (commandName === 'notify_admins') {
@@ -742,10 +769,17 @@ async function handleSlashCommand(interaction, env) {
     if (!message) return ephemeral('Message cannot be empty.');
 
     const admins = getAdminUserIds(env);
-    const { succeeded, failed, total, failures } = await dmAdmins(admins, `📢 **Admin update:**\n${message}`, env);
-    let resultMsg = `Sent to ${succeeded}/${total} admins.`;
-    if (failed) resultMsg += `\n\n${failed} failed:\n` + failures.map(f => `• ${f}`).join('\n');
-    return ephemeral(resultMsg);
+    const applicationId = interaction.application_id;
+    const interactionToken = interaction.token;
+
+    ctx.waitUntil((async () => {
+      const { succeeded, failed, total, failures } = await dmAdmins(admins, `📢 **Admin update:**\n${message}`, env);
+      let resultMsg = `Sent to ${succeeded}/${total} admins.`;
+      if (failed) resultMsg += `\n\n${failed} failed:\n` + failures.map(f => `• ${f}`).join('\n');
+      await editDeferredResponse(applicationId, interactionToken, resultMsg);
+    })());
+
+    return deferred();
   }
 
   return ephemeral('Unknown command.');
@@ -807,7 +841,7 @@ async function handleModalSubmit(interaction, env) {
   return ephemeral('Unknown submission.');
 }
 
-async function handleDiscordInteraction(request, env) {
+async function handleDiscordInteraction(request, env, ctx) {
   const bodyText = await request.text();
 
   const validSignature = await verifyDiscordSignature(request, bodyText, env);
@@ -820,7 +854,7 @@ async function handleDiscordInteraction(request, env) {
   }
 
   if (interaction.type === DISCORD_INTERACTION_APPLICATION_COMMAND) {
-    return await handleSlashCommand(interaction, env);
+    return await handleSlashCommand(interaction, env, ctx);
   }
 
   if (interaction.type === DISCORD_INTERACTION_MODAL_SUBMIT) {
@@ -875,7 +909,7 @@ export default {
       }
 
       if (pathname === '/api/discord/interactions' && request.method === 'POST') {
-        return await handleDiscordInteraction(request, env);
+        return await handleDiscordInteraction(request, env, ctx);
       }
     } catch (err) {
       return jsonResponse({ error: 'Server error: ' + err.message }, 500);
