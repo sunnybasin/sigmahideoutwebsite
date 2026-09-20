@@ -15,6 +15,7 @@
     "DISCORD_PUBLIC_KEY": "36fcb0bd64131bd0367570635ce210228b830795fb1489d791f70835c102aff1",
     "DISCORD_ANNOUNCEMENTS_CHANNEL_ID": "1304686446741033021"
   },
+
   "r2_buckets": [
     {
       "binding": "sigma_gallery",
@@ -26,5 +27,8 @@
       "binding": "GALLERY_KV",
       "id": "940547dcdaff4cb68a2c9ad78b9a3f32"
     }
-  ]
+  ],
+  "triggers": {
+    "crons": ["0 */6 * * *"]
+  }
 }
