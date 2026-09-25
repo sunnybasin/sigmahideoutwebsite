@@ -97,8 +97,16 @@ cat > "$GUILD_JSON" << 'PAYLOAD'
   },
   {
     "name": "talk",
-    "description": "Post a message to the announcements channel via a popup - admins only",
-    "type": 1
+    "description": "Post a message to a channel of your choice via a popup - admins only",
+    "type": 1,
+    "options": [
+      {
+        "name": "channel",
+        "description": "Which channel to post the message in",
+        "type": 7,
+        "required": true
+      }
+    ]
   }
 ]
 PAYLOAD
