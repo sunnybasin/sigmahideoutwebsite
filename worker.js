@@ -396,9 +396,18 @@ async function discordApiRequest(path, options, env) {
 // Without this, a single transient failure (rate limit, network blip)
 // would make the site briefly show "no events" even though real events
 // exist — this makes that show the last successful list instead.
+//
+// Writes to this cache are throttled (EVENTS_CACHE_MIN_WRITE_INTERVAL_MS)
+// because Workers KV's free tier caps writes at 1,000/day — without a
+// throttle, every single page load would write a fresh copy, and normal
+// browsing traffic can burn through that limit in hours. Reads are
+// effectively unlimited (100,000/day free), so checking freshness first
+// with a cheap read before deciding whether to write is what keeps this
+// well under the cap regardless of how much traffic the site gets.
 
 const EVENTS_CACHE_KEY = 'events-cache';
 const EVENTS_CACHE_TTL_SECONDS = 600; // how long a fallback snapshot stays usable
+const EVENTS_CACHE_MIN_WRITE_INTERVAL_MS = 5 * 60 * 1000; // don't write more than once per 5 minutes
 
 async function fetchScheduledEventsOnce(env) {
   const res = await discordApiRequest(`/guilds/${env.DISCORD_GUILD_ID}/scheduled-events`, { method: 'GET' }, env);
@@ -406,22 +415,42 @@ async function fetchScheduledEventsOnce(env) {
   return res.json();
 }
 
+async function maybeUpdateEventsCache(data, env) {
+  try {
+    const existingRaw = await env.GALLERY_KV.get(EVENTS_CACHE_KEY);
+    if (existingRaw) {
+      const existing = JSON.parse(existingRaw);
+      if (existing.cachedAt && Date.now() - existing.cachedAt < EVENTS_CACHE_MIN_WRITE_INTERVAL_MS) {
+        return; // written recently enough — skip this write to conserve KV's daily write quota
+      }
+    }
+  } catch {
+    // If reading/parsing the existing cache fails for any reason, just fall through and write fresh.
+  }
+  await env.GALLERY_KV.put(
+    EVENTS_CACHE_KEY,
+    JSON.stringify({ data, cachedAt: Date.now() }),
+    { expirationTtl: EVENTS_CACHE_TTL_SECONDS }
+  );
+}
+
 async function listScheduledEvents(env) {
   try {
     const data = await fetchScheduledEventsOnce(env);
-    // Success — remember this as the fallback for next time something goes wrong.
-    await env.GALLERY_KV.put(EVENTS_CACHE_KEY, JSON.stringify(data), { expirationTtl: EVENTS_CACHE_TTL_SECONDS });
+    await maybeUpdateEventsCache(data, env);
     return data;
   } catch {
     // First failure — try once more immediately, transient blips often clear right away.
     try {
       const data = await fetchScheduledEventsOnce(env);
-      await env.GALLERY_KV.put(EVENTS_CACHE_KEY, JSON.stringify(data), { expirationTtl: EVENTS_CACHE_TTL_SECONDS });
+      await maybeUpdateEventsCache(data, env);
       return data;
     } catch {
       // Still failing — fall back to the last successful list rather than showing nothing.
-      const cached = await env.GALLERY_KV.get(EVENTS_CACHE_KEY);
-      return cached ? JSON.parse(cached) : [];
+      const cachedRaw = await env.GALLERY_KV.get(EVENTS_CACHE_KEY);
+      if (!cachedRaw) return [];
+      const cached = JSON.parse(cachedRaw);
+      return cached.data || []; // .data is the current cache shape; guards against an old-format leftover
     }
   }
 }
@@ -483,10 +512,9 @@ function discordTimestamp(date, style) {
   return `<t:${Math.floor(date.getTime() / 1000)}:${style}>`;
 }
 
-async function announceToChannel(content, env) {
-  if (!env.DISCORD_ANNOUNCEMENTS_CHANNEL_ID) return false; // not configured
+async function postMessageToChannel(channelId, content, env) {
   try {
-    const res = await discordApiRequest(`/channels/${env.DISCORD_ANNOUNCEMENTS_CHANNEL_ID}/messages`, {
+    const res = await discordApiRequest(`/channels/${channelId}/messages`, {
       method: 'POST',
       body: JSON.stringify({ content, allowed_mentions: { parse: [] } })
     }, env);
@@ -494,6 +522,11 @@ async function announceToChannel(content, env) {
   } catch {
     return false;
   }
+}
+
+async function announceToChannel(content, env) {
+  if (!env.DISCORD_ANNOUNCEMENTS_CHANNEL_ID) return false; // not configured
+  return postMessageToChannel(env.DISCORD_ANNOUNCEMENTS_CHANNEL_ID, content, env);
 }
 
 async function handleListEventsPublic(env) {
@@ -543,11 +576,11 @@ function buildEventModal(customId, title, prefill) {
   });
 }
 
-function buildTalkModal() {
+function buildTalkModal(channelId) {
   return jsonResponse({
     type: DISCORD_RESPONSE_MODAL,
     data: {
-      custom_id: 'talk_modal',
+      custom_id: `talk_modal:${channelId}`,
       title: 'Send a message',
       components: [
         textInputRow('message', 'Message', 2, true)
@@ -753,7 +786,7 @@ Start/End times are entered as \`YYYY-MM-DD HH:MM\` and always treated as **UTC*
 • Go to sigmahideout.de/gallery/admin and log in with Discord — it unlocks automatically since you're on the admin list. From there you can delete any gallery upload.
 
 **Posting to the announcements channel directly**
-• \`/talk\` — opens a popup with one text box. Whatever you type gets posted to the announcements channel exactly as-is, no pings (same as event announcements).
+• \`/talk {channel}\` — pick any channel, then a popup opens for the message. Whatever you type gets posted there exactly as-is, no pings.
 
 **Keeping other admins in the loop**
 • \`/admin_help\` — resends this exact guide to every current admin (including you).
@@ -831,7 +864,10 @@ async function handleSlashCommand(interaction, env, ctx) {
 
   if (commandName === 'talk') {
     if (!isAuthorizedAdmin(userId, env)) return ephemeral("You don't have permission to use this.");
-    return buildTalkModal();
+    const channelOpt = (interaction.data.options || []).find(o => o.name === 'channel');
+    const channelId = channelOpt ? channelOpt.value : null;
+    if (!channelId) return ephemeral('You need to pick a channel.');
+    return buildTalkModal(channelId);
   }
 
   if (commandName === 'admin_help') {
@@ -901,13 +937,14 @@ async function handleModalSubmit(interaction, env) {
   const customId = interaction.data.custom_id;
   const fields = extractModalFields(interaction);
 
-  if (customId === 'talk_modal') {
+  if (customId.startsWith('talk_modal:')) {
+    const channelId = customId.split(':')[1];
     const message = (fields.message || '').trim();
     if (!message) return ephemeral('Message cannot be empty.');
-    const ok = await announceToChannel(message, env);
+    const ok = await postMessageToChannel(channelId, message, env);
     return ephemeral(ok
-      ? 'Sent to the announcements channel.'
-      : "Could not post that — check DISCORD_ANNOUNCEMENTS_CHANNEL_ID is set correctly and the bot has permission to post there.");
+      ? `Sent to <#${channelId}>.`
+      : `Could not post to <#${channelId}> — check the bot has permission to send messages there.`);
   }
 
   const startTime = parseAdminDate(fields.start_time);
