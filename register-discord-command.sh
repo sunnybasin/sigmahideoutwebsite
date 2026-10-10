@@ -36,7 +36,15 @@ cat > "$GUILD_JSON" << 'PAYLOAD'
   {
     "name": "create_event",
     "description": "Create a server event (opens a popup form) - admins only",
-    "type": 1
+    "type": 1,
+    "options": [
+      {
+        "name": "ping_everyone",
+        "description": "Ping @everyone in the announcement and day-of reminder (default: no)",
+        "type": 5,
+        "required": false
+      }
+    ]
   },
   {
     "name": "edit_event",
@@ -48,6 +56,12 @@ cat > "$GUILD_JSON" << 'PAYLOAD'
         "description": "The exact current name of the event to edit",
         "type": 3,
         "required": true
+      },
+      {
+        "name": "ping_everyone",
+        "description": "Ping @everyone in the update announcement (default: no)",
+        "type": 5,
+        "required": false
       }
     ]
   },

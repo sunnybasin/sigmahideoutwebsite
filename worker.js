@@ -47,6 +47,7 @@ const MAX_FILE_SIZE = 25 * 1024 * 1024; // 25MB per file
 const MAX_TOTAL_STORAGE_BYTES = 15 * 1024 * 1024 * 1024;
 
 const ITEM_PREFIX = 'item:';
+const GALLERY_INDEX_KEY = 'gallery-index';
 const USAGE_KEY = 'total-storage-bytes';
 const SESSION_PREFIX = 'session:';
 const SESSION_TTL_SECONDS = 60 * 60 * 24 * 30; // 30 days
@@ -249,7 +250,19 @@ async function adjustUsedBytes(env, delta) {
 
 // ---- Gallery logic ----
 
-async function listGallery(env) {
+// Scanning with KV.list() on every gallery view would burn through
+// Workers KV's free-tier cap on list operations (1,000/day) fast on a
+// site with any real traffic. Instead, a single JSON array of all items
+// is maintained under GALLERY_INDEX_KEY, updated whenever something is
+// uploaded or deleted — so a normal page view costs one cheap KV read
+// (100,000/day free) instead of a list operation.
+
+async function readGalleryIndex(env) {
+  const raw = await env.GALLERY_KV.get(GALLERY_INDEX_KEY);
+  if (raw !== null) return JSON.parse(raw);
+
+  // Index missing (first run, or it somehow got lost) — rebuild it once
+  // from a full scan, then it's cheap from here on.
   const items = [];
   let cursor;
   do {
@@ -262,8 +275,17 @@ async function listGallery(env) {
     if (page.list_complete) break;
   } while (cursor);
 
-  items.sort((a, b) => b.uploadedAt - a.uploadedAt);
+  await env.GALLERY_KV.put(GALLERY_INDEX_KEY, JSON.stringify(items));
   return items;
+}
+
+async function writeGalleryIndex(items, env) {
+  await env.GALLERY_KV.put(GALLERY_INDEX_KEY, JSON.stringify(items));
+}
+
+async function listGallery(env) {
+  const items = await readGalleryIndex(env);
+  return [...items].sort((a, b) => b.uploadedAt - a.uploadedAt);
 }
 
 async function handleUpload(request, env) {
@@ -337,6 +359,11 @@ async function handleUpload(request, env) {
     saved.push(entry);
   }
 
+  if (saved.length > 0) {
+    const index = await readGalleryIndex(env);
+    await writeGalleryIndex([...index, ...saved], env);
+  }
+
   return jsonResponse({ ok: true, items: saved });
 }
 
@@ -373,6 +400,10 @@ async function handleDelete(request, id, env) {
   if (typeof entry.size === 'number') {
     await adjustUsedBytes(env, -entry.size);
   }
+
+  const index = await readGalleryIndex(env);
+  await writeGalleryIndex(index.filter(item => item.id !== id), env);
+
   return jsonResponse({ ok: true });
 }
 
@@ -408,6 +439,33 @@ async function discordApiRequest(path, options, env) {
 const EVENTS_CACHE_KEY = 'events-cache';
 const EVENTS_CACHE_TTL_SECONDS = 600; // how long a fallback snapshot stays usable
 const EVENTS_CACHE_MIN_WRITE_INTERVAL_MS = 5 * 60 * 1000; // don't write more than once per 5 minutes
+
+// Discord's scheduled events don't have a field for "should this ping
+// @everyone" — that's a choice made when creating/editing through this
+// bot, so it's remembered here to reuse for the day-of reminder later.
+const EVENT_PING_PREFIX = 'event-ping:';
+const EVENT_PING_TTL_SECONDS = 60 * 60 * 24 * 90; // 90 days — comfortably past any event
+
+async function setEventPingChoice(eventId, pingEveryone, env) {
+  await env.GALLERY_KV.put(EVENT_PING_PREFIX + eventId, pingEveryone ? 'true' : 'false', {
+    expirationTtl: EVENT_PING_TTL_SECONDS
+  });
+}
+
+async function getEventPingChoice(eventId, env) {
+  const v = await env.GALLERY_KV.get(EVENT_PING_PREFIX + eventId);
+  return v === 'true';
+}
+
+function discordEventUrl(eventId, env) {
+  return `https://discord.com/events/${env.DISCORD_GUILD_ID}/${eventId}`;
+}
+
+// Tracks which events have already gotten their day-of reminder, so the
+// scheduled check (which can run several times during the event's day)
+// doesn't post it more than once.
+const EVENT_REMINDED_PREFIX = 'event-reminded:';
+const EVENT_REMINDED_TTL_SECONDS = 60 * 60 * 24 * 2; // 2 days is plenty past the event itself
 
 async function fetchScheduledEventsOnce(env) {
   const res = await discordApiRequest(`/guilds/${env.DISCORD_GUILD_ID}/scheduled-events`, { method: 'GET' }, env);
@@ -512,11 +570,14 @@ function discordTimestamp(date, style) {
   return `<t:${Math.floor(date.getTime() / 1000)}:${style}>`;
 }
 
-async function postMessageToChannel(channelId, content, env) {
+async function postMessageToChannel(channelId, content, env, allowEveryone) {
   try {
     const res = await discordApiRequest(`/channels/${channelId}/messages`, {
       method: 'POST',
-      body: JSON.stringify({ content, allowed_mentions: { parse: [] } })
+      body: JSON.stringify({
+        content,
+        allowed_mentions: allowEveryone ? { parse: ['everyone'] } : { parse: [] }
+      })
     }, env);
     return res.ok;
   } catch {
@@ -524,9 +585,9 @@ async function postMessageToChannel(channelId, content, env) {
   }
 }
 
-async function announceToChannel(content, env) {
+async function announceToChannel(content, env, allowEveryone) {
   if (!env.DISCORD_ANNOUNCEMENTS_CHANNEL_ID) return false; // not configured
-  return postMessageToChannel(env.DISCORD_ANNOUNCEMENTS_CHANNEL_ID, content, env);
+  return postMessageToChannel(env.DISCORD_ANNOUNCEMENTS_CHANNEL_ID, content, env, allowEveryone);
 }
 
 async function handleListEventsPublic(env) {
@@ -538,7 +599,8 @@ async function handleListEventsPublic(env) {
       description: e.description || '',
       location: (e.entity_metadata && e.entity_metadata.location) || '',
       start: e.scheduled_start_time,
-      end: e.scheduled_end_time || null
+      end: e.scheduled_end_time || null,
+      discordUrl: discordEventUrl(e.id, env)
     }))
     .sort((a, b) => new Date(a.start) - new Date(b.start));
   return jsonResponse(simplified);
@@ -776,8 +838,8 @@ const ADMIN_HELP_TEXT = `**Sigma Hideout — Admin Commands**
 You're on the admin list, which means you can:
 
 **Events**
-• \`/create_event\` — opens a popup to create a new server event (name, location, start/end time, description). Posts a ping-free announcement automatically.
-• \`/edit_event {name}\` — opens the same popup, pre-filled, to update an existing event. \`{name}\` must match the event's current name exactly.
+• \`/create_event {ping_everyone?}\` — opens a popup to create a new server event (name, location, start/end time, description). Posts an announcement with the event link automatically — ping-free by default, or set \`ping_everyone\` to true to include @everyone. A reminder with the link is also posted on the day of the event (at ~10am US Eastern), using the same ping choice.
+• \`/edit_event {name} {ping_everyone?}\` — opens the same popup, pre-filled, to update an existing event, and posts an updated announcement with the link. \`{name}\` must match the event's current name exactly.
 • \`/delete_event {name}\` — deletes an event immediately, no popup. \`{name}\` must match exactly.
 
 Start/End times are entered as \`YYYY-MM-DD HH:MM\` and always treated as **UTC**.
@@ -814,7 +876,57 @@ async function checkForNewAdmins(env) {
     );
   }
 
-  await env.GALLERY_KV.put(KNOWN_ADMINS_KEY, JSON.stringify(currentAdmins));
+  // Only write when something actually changed — this runs every hour,
+  // and KV's free tier only allows 1,000 writes/day.
+  const changed = JSON.stringify([...currentAdmins].sort()) !== JSON.stringify([...knownAdmins].sort());
+  if (changed) {
+    await env.GALLERY_KV.put(KNOWN_ADMINS_KEY, JSON.stringify(currentAdmins));
+  }
+}
+
+// ---- Day-of event reminders (runs on the same schedule) ----
+// Posts a reminder with the event link on the day of the event, once per
+// event. Honors the same @everyone choice that was made when the event
+// was created/edited. Times are UTC.
+//
+// A reminder goes out once the current UTC hour reaches
+// EVENT_REMINDER_HOUR_UTC on the event's day (14 = 10am US Eastern), or
+// sooner if the event is starting within the next 3 hours — so events
+// early in the day still get a heads-up. Events that already started
+// don't get one.
+
+const EVENT_REMINDER_HOUR_UTC = 14;
+
+async function checkForTodayEvents(env) {
+  const events = await listScheduledEvents(env);
+  const now = new Date();
+  const todayStr = now.toISOString().slice(0, 10);
+
+  for (const ev of events) {
+    const start = new Date(ev.scheduled_start_time);
+    if (start.toISOString().slice(0, 10) !== todayStr) continue; // not today (UTC)
+    if (start <= now) continue;                                  // already started
+
+    const hoursUntil = (start - now) / (1000 * 60 * 60);
+    const timeToRemind = now.getUTCHours() >= EVENT_REMINDER_HOUR_UTC || hoursUntil <= 3;
+    if (!timeToRemind) continue;
+
+    const alreadyReminded = await env.GALLERY_KV.get(EVENT_REMINDED_PREFIX + ev.id);
+    if (alreadyReminded) continue;
+
+    const pingEveryone = await getEventPingChoice(ev.id, env);
+    const location = (ev.entity_metadata && ev.entity_metadata.location) || '';
+
+    let msg = `⏰ **Today: ${ev.name}**\n${discordTimestamp(start, 'F')} (${discordTimestamp(start, 'R')})`;
+    if (location) msg += `\n📍 ${location}`;
+    msg += `\n\n${discordEventUrl(ev.id, env)}`;
+    if (pingEveryone) msg = '@everyone\n' + msg;
+
+    const ok = await announceToChannel(msg, env, pingEveryone);
+    if (ok) {
+      await env.GALLERY_KV.put(EVENT_REMINDED_PREFIX + ev.id, '1', { expirationTtl: EVENT_REMINDED_TTL_SECONDS });
+    }
+  }
 }
 
 async function handleSlashCommand(interaction, env, ctx) {
@@ -827,17 +939,21 @@ async function handleSlashCommand(interaction, env, ctx) {
 
   if (commandName === 'create_event') {
     if (!isAuthorizedAdmin(userId, env)) return ephemeral("You don't have permission to create events.");
-    return buildEventModal('create_event_modal', 'Create an event');
+    const pingOpt = (interaction.data.options || []).find(o => o.name === 'ping_everyone');
+    const pingEveryone = pingOpt ? Boolean(pingOpt.value) : false;
+    return buildEventModal(`create_event_modal:${pingEveryone}`, 'Create an event');
   }
 
   if (commandName === 'edit_event') {
     if (!isAuthorizedAdmin(userId, env)) return ephemeral("You don't have permission to edit events.");
     const nameOpt = (interaction.data.options || []).find(o => o.name === 'name');
+    const pingOpt = (interaction.data.options || []).find(o => o.name === 'ping_everyone');
+    const pingEveryone = pingOpt ? Boolean(pingOpt.value) : false;
     const searchName = nameOpt ? nameOpt.value : '';
     const existing = await findEventByName(searchName, env);
     if (!existing) return ephemeral(`No event found named "${searchName}".`);
 
-    return buildEventModal(`edit_event_modal:${existing.id}`, 'Edit event', {
+    return buildEventModal(`edit_event_modal:${existing.id}:${pingEveryone}`, 'Edit event', {
       name: existing.name,
       location: (existing.entity_metadata && existing.entity_metadata.location) || '',
       start_time: formatForModal(existing.scheduled_start_time),
@@ -969,25 +1085,35 @@ async function handleModalSubmit(interaction, env) {
   };
 
   try {
-    if (customId === 'create_event_modal') {
-      await createScheduledEvent(eventFields, env);
+    if (customId.startsWith('create_event_modal:')) {
+      const pingEveryone = customId.split(':')[1] === 'true';
+      const created = await createScheduledEvent(eventFields, env);
+      await setEventPingChoice(created.id, pingEveryone, env);
 
+      const eventUrl = discordEventUrl(created.id, env);
       let announcement = `📅 **New event: ${fields.name}**\n${discordTimestamp(startTime, 'F')} (${discordTimestamp(startTime, 'R')})`;
       if (fields.location) announcement += `\n📍 ${fields.location}`;
       if (fields.description) announcement += `\n\n${fields.description}`;
-      await announceToChannel(announcement, env);
+      announcement += `\n\n${eventUrl}`;
+      if (pingEveryone) announcement = '@everyone\n' + announcement;
+      await announceToChannel(announcement, env, pingEveryone);
 
-      return ephemeral(`Created "${fields.name}". Announced in the announcements channel.`);
+      return ephemeral(`Created "${fields.name}".` + (pingEveryone ? ' Announced with @everyone.' : ' Announced in the announcements channel.'));
     }
     if (customId.startsWith('edit_event_modal:')) {
-      const eventId = customId.split(':')[1];
+      const [, eventId, pingStr] = customId.split(':');
+      const pingEveryone = pingStr === 'true';
       await updateScheduledEvent(eventId, eventFields, env);
+      await setEventPingChoice(eventId, pingEveryone, env);
 
+      const eventUrl = discordEventUrl(eventId, env);
       let announcement = `✏️ **Event updated: ${fields.name}**\n${discordTimestamp(startTime, 'F')} (${discordTimestamp(startTime, 'R')})`;
       if (fields.location) announcement += `\n📍 ${fields.location}`;
-      await announceToChannel(announcement, env);
+      announcement += `\n\n${eventUrl}`;
+      if (pingEveryone) announcement = '@everyone\n' + announcement;
+      await announceToChannel(announcement, env, pingEveryone);
 
-      return ephemeral(`Updated "${fields.name}". Announced in the announcements channel.`);
+      return ephemeral(`Updated "${fields.name}".` + (pingEveryone ? ' Announced with @everyone.' : ' Announced in the announcements channel.'));
     }
   } catch (err) {
     return ephemeral('Something went wrong talking to Discord: ' + err.message);
@@ -1081,5 +1207,6 @@ export default {
   // automatically next time this runs.
   async scheduled(event, env, ctx) {
     await checkForNewAdmins(env);
+    await checkForTodayEvents(env);
   }
 };

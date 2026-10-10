@@ -247,6 +247,16 @@
       margin-top: 0.4rem;
       white-space: pre-wrap;
     }
+    .event-card .event-link {
+      align-self: flex-start;
+      margin-top: 0.6rem;
+      font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
+      font-size: 0.85rem;
+      color: var(--text-dim);
+      text-decoration: underline;
+      transition: color 0.15s ease;
+    }
+    .event-card .event-link:hover { color: var(--ember-dim); }
     .empty-state {
       color: var(--text-dim);
       font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
@@ -374,6 +384,7 @@
           <div class="event-when">${escapeHtml(formatWhen(ev.start, ev.end))}</div>
           ${ev.location ? `<div class="event-location">📍 ${escapeHtml(ev.location)}</div>` : ''}
           ${ev.description ? `<div class="event-description">${escapeHtml(ev.description)}</div>` : ''}
+          ${ev.discordUrl ? `<a class="event-link" href="${escapeHtml(ev.discordUrl)}" target="_blank" rel="noopener">View on Discord &rarr;</a>` : ''}
         `;
         eventList.appendChild(card);
       });
