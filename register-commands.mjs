@@ -1,7 +1,11 @@
-// Run locally (Node 18+) to register slash commands for bot-a:
-//   DISCORD_TOKEN=xxx DISCORD_APPLICATION_ID=yyy node register-commands.mjs
-// On Windows PowerShell:
-//   $env:DISCORD_TOKEN="xxx"; $env:DISCORD_APPLICATION_ID="yyy"; node register-commands.mjs
+// Run locally (Node 18+) to register the bot's slash commands.
+// Replaces the bot's whole command list, so old ones like /ping disappear.
+//
+// Git Bash:
+//   export DISCORD_TOKEN="..." DISCORD_APPLICATION_ID="..."
+//   node register-commands.mjs
+// PowerShell:
+//   $env:DISCORD_TOKEN="..."; $env:DISCORD_APPLICATION_ID="..."; node register-commands.mjs
 
 const { DISCORD_TOKEN, DISCORD_APPLICATION_ID } = process.env;
 
@@ -12,13 +16,31 @@ if (!DISCORD_TOKEN || !DISCORD_APPLICATION_ID) {
 
 const commands = [
   {
+    // Visible to everyone so allowed roles can use it; the Worker itself
+    // refuses anyone who isn't an admin or an allowed role.
     name: "playtest_create",
-    description: "Create a playtest signup button and role",
+    description: "Create an event with a signup button and role",
+    type: 1,
+  },
+  {
+    name: "playtest_roles",
+    description: "Choose which roles can create events (admins only)",
     type: 1,
     default_member_permissions: "8", // hidden from non-administrators
     options: [
-      { type: 3, name: "name", description: "Playtest name (also the role name)", required: true },
-      { type: 3, name: "description", description: "Date, time, details", required: false },
+      {
+        type: 1, // subcommand
+        name: "add",
+        description: "Let a role create events",
+        options: [{ type: 8, name: "role", description: "Role to allow", required: true }],
+      },
+      {
+        type: 1,
+        name: "remove",
+        description: "Stop a role from creating events",
+        options: [{ type: 8, name: "role", description: "Role to remove", required: true }],
+      },
+      { type: 1, name: "list", description: "Show which roles can create events" },
     ],
   },
 ];
