@@ -1,5 +1,5 @@
 // Run locally (Node 18+) to register the bot's slash commands.
-// Replaces the bot's whole command list, so old ones like /ping disappear.
+// Replaces the bot's whole command list, so old ones (/playtest_create etc.) disappear.
 //
 // Git Bash:
 //   export DISCORD_TOKEN="..." DISCORD_APPLICATION_ID="..."
@@ -18,29 +18,50 @@ const commands = [
   {
     // Visible to everyone so allowed roles can use it; the Worker itself
     // refuses anyone who isn't an admin or an allowed role.
-    name: "playtest_create",
-    description: "Create an event with a signup button and role",
+    name: "rsvp_create",
+    description: "Create an RSVP with a signup button, role, and private channel",
+    type: 1,
+    options: [
+      {
+        type: 7, // CHANNEL
+        name: "channel_category",
+        description: "Discord category to create the private RSVP channel in",
+        required: true,
+        channel_types: [4], // category channels only
+      },
+      {
+        type: 11, // ATTACHMENT
+        name: "image",
+        description: "Optional image for the RSVP post (PNG, JPG, GIF, or WebP, up to 8 MB)",
+        required: false,
+      },
+    ],
+  },
+  {
+    // Same as /rsvp_create: visible to everyone, the Worker enforces who may use it.
+    name: "announce",
+    description: "Post an announcement and choose who to ping",
     type: 1,
   },
   {
-    name: "playtest_roles",
-    description: "Choose which roles can create events (admins only)",
+    name: "rsvp_roles",
+    description: "Choose which roles can create RSVPs (admins only)",
     type: 1,
     default_member_permissions: "8", // hidden from non-administrators
     options: [
       {
         type: 1, // subcommand
         name: "add",
-        description: "Let a role create events",
+        description: "Let a role create RSVPs",
         options: [{ type: 8, name: "role", description: "Role to allow", required: true }],
       },
       {
         type: 1,
         name: "remove",
-        description: "Stop a role from creating events",
+        description: "Stop a role from creating RSVPs",
         options: [{ type: 8, name: "role", description: "Role to remove", required: true }],
       },
-      { type: 1, name: "list", description: "Show which roles can create events" },
+      { type: 1, name: "list", description: "Show which roles can create RSVPs" },
     ],
   },
 ];
@@ -57,4 +78,11 @@ const res = await fetch(
   }
 );
 
-console.log(res.status, res.ok ? "Commands registered." : await res.text());
+if (res.ok) {
+  const created = await res.json();
+  console.log(res.status, "Commands registered:");
+  for (const c of created) console.log("  /" + c.name);
+} else {
+  console.log(res.status, "FAILED:");
+  console.log(await res.text());
+}
