@@ -11,6 +11,12 @@
 //        chosen Discord category, visible only to people with the role, only admins can
 //        talk), and an announcement post with I'm interested / Opt out buttons.
 //        Allowed: administrators, plus any role added with /rsvp_roles.
+// /rsvp_edit role:<the RSVP's role> [image:<file>] [remove_image:true]
+//     -> popup prefilled with the current name, category, and description.
+//        Updates the post (keeping its Interested count), and renames the
+//        role and private channel if the name changed.
+// /rsvp_delete role:<the RSVP's role>
+//     -> asks to confirm, then deletes the post, the private channel, and the role.
 // /announce
 //     -> popup: optional title, message, channel, and who to ping (nobody,
 //        @everyone, or a role you pick). Same permission rule as /rsvp_create.
@@ -35,6 +41,9 @@ const MODAL_PREFIX = 'rsvp_modal:';
 const OTHER_BTN_PREFIX = 'rsvp_other:';
 const OTHER_MODAL_PREFIX = 'rsvp_other_modal:';
 const ANNOUNCE_MODAL_ID = 'announce_modal';
+const EDIT_MODAL_PREFIX = 'rsvp_edit_modal:';
+const DEL_YES_PREFIX = 'rsvp_del_yes:';
+const DEL_NO_PREFIX = 'rsvp_del_no:';
 const BTN_IN = 'ev_in:';
 const BTN_OUT = 'ev_out:';
 
@@ -42,6 +51,7 @@ const BTN_OUT = 'ev_out:';
 const ALLOWED_ROLES_KEY = 'allowed-roles';
 const EVENT_PREFIX = 'event:';
 const DRAFT_PREFIX = 'draft:';
+const RSVP_PREFIX = 'rsvp:'; // one record per RSVP, keyed by its role id
 const EVENT_TTL_SECONDS = 60 * 60 * 24 * 365;
 const DRAFT_TTL_SECONDS = 900;
 
@@ -133,14 +143,16 @@ async function sendDirectMessage(userId, content, env) {
 
 // Edits the "thinking..." placeholder from a deferred response.
 // Uses the interaction token itself, so no Authorization header is needed.
-async function editOriginal(interaction, content) {
+async function editOriginal(interaction, content, clearComponents = false) {
   try {
+    const body = { content, allowed_mentions: { parse: [] } };
+    if (clearComponents) body.components = [];
     await fetch(
       `https://discord.com/api/v10/webhooks/${interaction.application_id}/${interaction.token}/messages/@original`,
       {
         method: 'PATCH',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ content, allowed_mentions: { parse: [] } })
+        body: JSON.stringify(body)
       }
     );
   } catch {
@@ -195,6 +207,39 @@ async function loadDraft(env, draftId) {
   } catch {
     return null;
   }
+}
+
+// ---------- RSVP records (what /rsvp_edit and /rsvp_delete look up) ----------
+
+async function loadRsvpRecord(env, roleId) {
+  const raw = await env.PLAYTEST_KV.get(RSVP_PREFIX + roleId);
+  if (!raw) return null;
+  try {
+    return JSON.parse(raw);
+  } catch {
+    return null;
+  }
+}
+
+async function saveRsvpRecord(env, record) {
+  await env.PLAYTEST_KV.put(RSVP_PREFIX + record.roleId, JSON.stringify(record));
+}
+
+// Reads and checks the optional "image" attachment on a command.
+// Returns { image } (image is null if none was given) or { error }.
+function readImageOption(interaction) {
+  const imageOpt = (interaction.data.options || []).find(o => o.name === 'image');
+  if (!imageOpt) return { image: null };
+
+  const resolved = interaction.data.resolved || {};
+  const att = resolved.attachments && resolved.attachments[imageOpt.value];
+  if (!att) return { image: null };
+
+  const contentType = (att.content_type || '').split(';')[0].trim();
+  const ext = IMAGE_TYPES[contentType];
+  if (!ext) return { error: 'The image must be a PNG, JPG, GIF, or WebP file.' };
+  if (att.size > MAX_IMAGE_BYTES) return { error: 'That image is too big. Keep it under 8 MB.' };
+  return { image: { url: att.url, ext } };
 }
 
 // ---------- who is allowed to create RSVPs ----------
@@ -331,21 +376,11 @@ async function handleCreateCommand(interaction, env) {
 
   const opts = interaction.data.options || [];
   const categoryOpt = opts.find(o => o.name === 'channel_category');
-  const imageOpt = opts.find(o => o.name === 'image');
   if (!categoryOpt) return ephemeral('Pick a category to create the private channel in.');
 
-  let image = null;
-  if (imageOpt) {
-    const resolved = interaction.data.resolved || {};
-    const att = resolved.attachments && resolved.attachments[imageOpt.value];
-    if (att) {
-      const contentType = (att.content_type || '').split(';')[0].trim();
-      const ext = IMAGE_TYPES[contentType];
-      if (!ext) return ephemeral('The image must be a PNG, JPG, GIF, or WebP file.');
-      if (att.size > MAX_IMAGE_BYTES) return ephemeral('That image is too big. Keep it under 8 MB.');
-      image = { url: att.url, ext };
-    }
-  }
+  const img = readImageOption(interaction);
+  if (img.error) return ephemeral(img.error);
+  const image = img.image;
 
   // The popup can't see the command's options, so keep them for the next step.
   const draftId = interaction.id;
@@ -601,10 +636,341 @@ async function finalizeRsvp(interaction, d, env) {
       (d.pingEveryone ? ', plus Mention Everyone' : '') + `. Nothing was created. (${detail})`;
   }
 
+  // 5) remember it, so /rsvp_edit and /rsvp_delete can find everything later
+  let saveWarning = '';
+  try {
+    const posted = await msgRes.json();
+    await saveRsvpRecord(env, {
+      roleId: role.id,
+      channelId: channel.id,
+      announceChannelId: d.announceChannelId,
+      messageId: posted.id,
+      guildId,
+      name: d.name,
+      category: d.category,
+      description: d.description,
+      createdBy: getUserId(interaction)
+    });
+  } catch {
+    saveWarning = "\n⚠️ I couldn't save this RSVP's details, so /rsvp_edit and /rsvp_delete won't work for it.";
+  }
+
   return `Done! Posted **${d.name}** in <#${d.announceChannelId}>` +
     (d.pingEveryone ? ' with @everyone' : '') + '.\n' +
     `Private channel: <#${channel.id}> (only people who RSVP can see it, and only admins can talk).\n` +
-    `Role: <@&${role.id}>`;
+    `Role: <@&${role.id}>` + saveWarning;
+}
+
+// ---------- editing and deleting RSVPs ----------
+// /rsvp_edit and /rsvp_delete take the RSVP's role, then look up its record
+// (post, private channel, role). RSVPs created before this feature existed
+// have no record, so they can't be edited or deleted with these commands.
+// Same permission rule as /rsvp_create: administrators + roles from /rsvp_roles.
+
+// Acknowledge now and finish in the background (several API calls can exceed
+// Discord's 3 second limit). The result replaces the "thinking..." message.
+function deferWork(interaction, work, ctx) {
+  ctx.waitUntil((async () => {
+    let message;
+    try {
+      message = await work();
+    } catch (err) {
+      message = 'Something went wrong: ' + err.message;
+    }
+    await editOriginal(interaction, message);
+  })());
+  return json({ type: 5, data: { flags: 64 } });
+}
+
+async function lookupRsvpFromCommand(interaction, env) {
+  const roleOpt = (interaction.data.options || []).find(o => o.name === 'role');
+  const roleId = roleOpt && roleOpt.value;
+  if (!roleId) return { error: "Pick the RSVP's role." };
+
+  const rec = await loadRsvpRecord(env, roleId);
+  if (!rec) {
+    return {
+      error: "That role isn't an RSVP I can manage. (RSVPs made before editing was added can't be edited or deleted with this command.)"
+    };
+  }
+  if (rec.guildId && rec.guildId !== interaction.guild_id) {
+    return { error: 'That RSVP belongs to a different server.' };
+  }
+  return { rec };
+}
+
+function buildEditModal(draftId, rec) {
+  const withValue = (input, value) => (value ? { ...input, value: String(value) } : input);
+  return json({
+    type: 9, // MODAL
+    data: {
+      custom_id: EDIT_MODAL_PREFIX + draftId,
+      title: 'Edit RSVP',
+      components: [
+        {
+          type: 18,
+          label: 'Name of RSVP',
+          component: withValue({ type: 4, custom_id: 'name', style: 1, required: true, max_length: 100 }, rec.name)
+        },
+        {
+          type: 18,
+          label: 'Category',
+          component: withValue({ type: 4, custom_id: 'category', style: 1, required: true, max_length: 50 }, rec.category)
+        },
+        {
+          type: 18,
+          label: 'Description',
+          component: withValue({ type: 4, custom_id: 'description', style: 2, required: false, max_length: 1000 }, rec.description)
+        }
+      ]
+    }
+  });
+}
+
+async function handleEditCommand(interaction, env) {
+  if (!interaction.guild_id) return ephemeral('Use this command in the server, not in DMs.');
+  if (!(await canCreateEvents(interaction, env))) {
+    return ephemeral("You don't have permission to edit RSVPs. Ask an admin to add your role with /rsvp_roles.");
+  }
+
+  const found = await lookupRsvpFromCommand(interaction, env);
+  if (found.error) return ephemeral(found.error);
+
+  const img = readImageOption(interaction);
+  if (img.error) return ephemeral(img.error);
+  const removeOpt = (interaction.data.options || []).find(o => o.name === 'remove_image');
+  const removeImage = Boolean(removeOpt && removeOpt.value) && !img.image; // a new image wins
+
+  const draftId = interaction.id;
+  await saveDraft(env, draftId, {
+    kind: 'edit',
+    roleId: found.rec.roleId,
+    image: img.image,
+    removeImage,
+    userId: getUserId(interaction)
+  });
+  return buildEditModal(draftId, found.rec);
+}
+
+async function handleEditForm(interaction, env, ctx, draftId) {
+  if (!interaction.guild_id) return ephemeral('Use this in the server, not in DMs.');
+  if (!(await canCreateEvents(interaction, env))) {
+    return ephemeral("You don't have permission to edit RSVPs.");
+  }
+
+  const draft = await loadDraft(env, draftId);
+  if (!draft || draft.kind !== 'edit' || draft.userId !== getUserId(interaction)) {
+    return ephemeral('That form expired. Run /rsvp_edit again.');
+  }
+
+  const f = readModal(interaction);
+  const name = String(first(f.name) || '').trim().slice(0, 100);
+  const category = String(first(f.category) || '').trim().slice(0, 50);
+  const description = String(first(f.description) || '').trim().slice(0, 1000);
+  if (!name) return ephemeral('The RSVP needs a name.');
+
+  return deferWork(interaction, async () => {
+    const message = await finalizeEdit(interaction, { ...draft, name, category, description }, env);
+    try {
+      await env.PLAYTEST_KV.delete(DRAFT_PREFIX + draftId);
+    } catch {
+      // drafts expire on their own
+    }
+    return message;
+  }, ctx);
+}
+
+async function finalizeEdit(interaction, d, env) {
+  const guildId = interaction.guild_id;
+  const rec = await loadRsvpRecord(env, d.roleId);
+  if (!rec) return 'That RSVP no longer exists.';
+
+  const name = d.name;
+  const category = d.category || rec.category || 'Other';
+  const description = d.description;
+
+  // 1) new image, downloaded first so a bad one fails before anything changes
+  let imageBlob = null;
+  let imageName = null;
+  if (d.image) {
+    const imgRes = await fetch(d.image.url);
+    if (!imgRes.ok) return 'Could not download that image. Try again.';
+    imageBlob = await imgRes.blob();
+    imageName = 'rsvp-image' + d.image.ext;
+  }
+
+  // 2) read the current post, to keep its "Interested" count and image
+  const messagePath = `/channels/${rec.announceChannelId}/messages/${rec.messageId}`;
+  const getRes = await discordApi(messagePath, { method: 'GET' }, env);
+  if (getRes.status === 404) {
+    return "The announcement post no longer exists, so there's nothing to edit. Use /rsvp_delete to clean up the role and channel.";
+  }
+  if (!getRes.ok) return `Could not read the announcement post (${getRes.status}).`;
+  const current = await getRes.json();
+  const oldEmbed = (current.embeds && current.embeds[0]) || {};
+  const countValue = (oldEmbed.fields && oldEmbed.fields[0] && oldEmbed.fields[0].value) || '0';
+  const existingAtt = current.attachments && current.attachments[0];
+
+  let embedImageName = null;
+  if (imageBlob) embedImageName = imageName;
+  else if (!d.removeImage && existingAtt && existingAtt.filename) embedImageName = existingAtt.filename;
+
+  const embed = buildEmbed(name, category, description, countValue, embedImageName);
+  if (!embedImageName && !d.removeImage && oldEmbed.image && oldEmbed.image.url) {
+    embed.image = { url: oldEmbed.image.url };
+  }
+
+  // 3) update the post (buttons and the count stay as they are)
+  let patchRes;
+  if (imageBlob) {
+    const form = new FormData();
+    form.append('payload_json', JSON.stringify({
+      embeds: [embed],
+      allowed_mentions: { parse: [] },
+      attachments: [{ id: 0, filename: imageName }] // replaces the old image
+    }));
+    form.append('files[0]', imageBlob, imageName);
+    patchRes = await fetch(`https://discord.com/api/v10${messagePath}`, {
+      method: 'PATCH',
+      headers: { Authorization: `Bot ${env.DISCORD_BOT_TOKEN}` },
+      body: form
+    });
+  } else {
+    const body = { embeds: [embed], allowed_mentions: { parse: [] } };
+    if (d.removeImage) body.attachments = [];
+    patchRes = await discordApi(messagePath, { method: 'PATCH', body: JSON.stringify(body) }, env);
+  }
+  if (!patchRes.ok) {
+    const detail = (await patchRes.text()).slice(0, 200);
+    return `Could not edit the announcement post. (${detail})`;
+  }
+
+  // 4) if the name changed, rename the role and the private channel too
+  const notes = [];
+  if (name !== rec.name) {
+    const roleRes = await discordApi(`/guilds/${guildId}/roles/${rec.roleId}`, {
+      method: 'PATCH',
+      headers: { 'X-Audit-Log-Reason': 'RSVP renamed' },
+      body: JSON.stringify({ name })
+    }, env);
+    if (!roleRes.ok) notes.push("⚠️ I couldn't rename the role.");
+
+    const chRes = await discordApi(`/channels/${rec.channelId}`, {
+      method: 'PATCH',
+      headers: { 'X-Audit-Log-Reason': 'RSVP renamed' },
+      body: JSON.stringify({ name: name.slice(0, 100) })
+    }, env);
+    if (!chRes.ok) {
+      notes.push("⚠️ I couldn't rename the private channel (Discord only allows 2 channel renames per 10 minutes, so try again later).");
+    }
+  }
+
+  // 5) remember the new details
+  try {
+    await saveRsvpRecord(env, { ...rec, name, category, description });
+  } catch {
+    notes.push("⚠️ I couldn't save the new details, so the next edit may show the old text.");
+  }
+
+  const imageNote = imageBlob ? ' New image added.' : (d.removeImage ? ' Image removed.' : '');
+  return `Updated **${name}**.${imageNote}` + (notes.length ? '\n' + notes.join('\n') : '');
+}
+
+async function handleDeleteCommand(interaction, env) {
+  if (!interaction.guild_id) return ephemeral('Use this command in the server, not in DMs.');
+  if (!(await canCreateEvents(interaction, env))) {
+    return ephemeral("You don't have permission to delete RSVPs. Ask an admin to add your role with /rsvp_roles.");
+  }
+
+  const found = await lookupRsvpFromCommand(interaction, env);
+  if (found.error) return ephemeral(found.error);
+  const rec = found.rec;
+
+  // Deleting can't be undone, so ask first.
+  return json({
+    type: 4,
+    data: {
+      flags: 64,
+      allowed_mentions: { parse: [] },
+      content:
+        `Delete **${rec.name}**? This permanently deletes:\n` +
+        `• the announcement post\n• the private channel <#${rec.channelId}>\n• the role <@&${rec.roleId}> (everyone loses it)\n\n` +
+        "This can't be undone.",
+      components: [{
+        type: 1,
+        components: [
+          { type: 2, style: 4, label: 'Yes, delete everything', custom_id: DEL_YES_PREFIX + rec.roleId },
+          { type: 2, style: 2, label: 'Cancel', custom_id: DEL_NO_PREFIX + rec.roleId }
+        ]
+      }]
+    }
+  });
+}
+
+async function handleDeleteButton(interaction, env, ctx) {
+  const customId = interaction.data.custom_id;
+
+  if (customId.startsWith(DEL_NO_PREFIX)) {
+    return json({ type: 7, data: { content: 'Cancelled. Nothing was deleted.', components: [] } });
+  }
+
+  if (!(await canCreateEvents(interaction, env))) {
+    return ephemeral("You don't have permission to delete RSVPs.");
+  }
+
+  const roleId = customId.slice(DEL_YES_PREFIX.length);
+  ctx.waitUntil((async () => {
+    let message;
+    try {
+      message = await deleteRsvp(interaction, roleId, env);
+    } catch (err) {
+      message = 'Something went wrong: ' + err.message;
+    }
+    await editOriginal(interaction, message, true); // also removes the buttons
+  })());
+
+  return json({ type: 6 }); // DEFERRED_UPDATE_MESSAGE: edit the confirmation in place
+}
+
+async function deleteRsvp(interaction, roleId, env) {
+  const rec = await loadRsvpRecord(env, roleId);
+  if (!rec) return 'That RSVP was already deleted.';
+  if (rec.guildId && rec.guildId !== interaction.guild_id) return 'That RSVP belongs to a different server.';
+
+  const lines = [];
+  let allOk = true;
+  // a 404 means it's already gone, which is what we want
+  const remove = async (label, path) => {
+    const res = await discordApi(path, {
+      method: 'DELETE',
+      headers: { 'X-Audit-Log-Reason': 'RSVP deleted' }
+    }, env);
+    if (res.ok || res.status === 404) {
+      lines.push(`✅ Deleted the ${label}`);
+    } else {
+      allOk = false;
+      lines.push(`⚠️ Could not delete the ${label} (error ${res.status})`);
+    }
+  };
+
+  // post first, so nobody can press the buttons while the rest is removed
+  await remove('announcement post', `/channels/${rec.announceChannelId}/messages/${rec.messageId}`);
+  await remove('private channel', `/channels/${rec.channelId}`);
+  await remove('role', `/guilds/${rec.guildId || interaction.guild_id}/roles/${rec.roleId}`);
+
+  if (allOk) {
+    try {
+      await env.PLAYTEST_KV.delete(RSVP_PREFIX + roleId);
+      await env.PLAYTEST_KV.delete(EVENT_PREFIX + roleId);
+    } catch {
+      // not critical
+    }
+    return `**${rec.name}** is gone.\n` + lines.join('\n');
+  }
+
+  // keep the record so running /rsvp_delete again can finish the job
+  return `**${rec.name}** was only partly deleted.\n` + lines.join('\n') +
+    '\n\nFix the permission it mentions, then run /rsvp_delete again to finish.';
 }
 
 // ---------- announcements ----------
@@ -836,12 +1202,17 @@ export default {
         if (name === 'rsvp_create') return await handleCreateCommand(interaction, env);
         if (name === 'rsvp_roles') return await handleRolesCommand(interaction, env);
         if (name === 'announce') return await handleAnnounceCommand(interaction, env);
+        if (name === 'rsvp_edit') return await handleEditCommand(interaction, env);
+        if (name === 'rsvp_delete') return await handleDeleteCommand(interaction, env);
         return ephemeral('Unknown command.');
       }
 
       if (interaction.type === 3) { // button
         const customId = (interaction.data && interaction.data.custom_id) || '';
         if (customId.startsWith(OTHER_BTN_PREFIX)) return await handleOtherButton(interaction, env);
+        if (customId.startsWith(DEL_YES_PREFIX) || customId.startsWith(DEL_NO_PREFIX)) {
+          return await handleDeleteButton(interaction, env, ctx);
+        }
         return await handleButton(interaction, env, ctx);
       }
 
@@ -852,6 +1223,9 @@ export default {
         }
         if (customId.startsWith(OTHER_MODAL_PREFIX)) {
           return await handleCustomCategoryForm(interaction, env, ctx, customId.slice(OTHER_MODAL_PREFIX.length));
+        }
+        if (customId.startsWith(EDIT_MODAL_PREFIX)) {
+          return await handleEditForm(interaction, env, ctx, customId.slice(EDIT_MODAL_PREFIX.length));
         }
         if (customId === ANNOUNCE_MODAL_ID) return await handleAnnounceForm(interaction, env);
         return ephemeral('Unknown form.');
