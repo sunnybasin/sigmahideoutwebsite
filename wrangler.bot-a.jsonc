@@ -1,8 +1,6 @@
 {
   "$schema": "node_modules/wrangler/config-schema.json",
-  "name": "playtest-site",
-  "compatibility_date": "2026-10-01",
-  "assets": {
-    "directory": "./public"
-  }
+  "name": "bot-a",
+  "main": "src/bot-a.js",
+  "compatibility_date": "2026-10-01"
 }
