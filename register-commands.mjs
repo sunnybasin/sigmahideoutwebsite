@@ -11,7 +11,16 @@ if (!DISCORD_TOKEN || !DISCORD_APPLICATION_ID) {
 }
 
 const commands = [
-  { name: "ping", description: "Check that the bot is alive", type: 1 },
+  {
+    name: "playtest_create",
+    description: "Create a playtest signup button and role",
+    type: 1,
+    default_member_permissions: "8", // hidden from non-administrators
+    options: [
+      { type: 3, name: "name", description: "Playtest name (also the role name)", required: true },
+      { type: 3, name: "description", description: "Date, time, details", required: false },
+    ],
+  },
 ];
 
 const res = await fetch(

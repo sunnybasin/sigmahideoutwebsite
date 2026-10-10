@@ -1,6 +1,6 @@
 {
   "$schema": "node_modules/wrangler/config-schema.json",
   "name": "bot-a",
-  "main": "src/bot-a.js",
+  "main": "bot-a.js",
   "compatibility_date": "2026-10-01"
 }
