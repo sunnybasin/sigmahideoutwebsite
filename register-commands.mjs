@@ -38,6 +38,32 @@ const commands = [
     ],
   },
   {
+    name: "rsvp_edit",
+    description: "Edit an RSVP's name, category, description, or image",
+    type: 1,
+    options: [
+      { type: 8, name: "role", description: "The RSVP's role", required: true },
+      {
+        type: 11, // ATTACHMENT
+        name: "image",
+        description: "Optional new image (replaces the old one)",
+        required: false,
+      },
+      {
+        type: 5, // BOOLEAN
+        name: "remove_image",
+        description: "Remove the RSVP's image",
+        required: false,
+      },
+    ],
+  },
+  {
+    name: "rsvp_delete",
+    description: "Delete an RSVP, its private channel, and its role",
+    type: 1,
+    options: [{ type: 8, name: "role", description: "The RSVP's role", required: true }],
+  },
+  {
     // Same as /rsvp_create: visible to everyone, the Worker enforces who may use it.
     name: "announce",
     description: "Post an announcement and choose who to ping",
