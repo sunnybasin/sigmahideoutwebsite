@@ -3,6 +3,6 @@
   "main": "bot-a.js",
   "compatibility_date": "2026-10-01",
   "kv_namespaces": [
-    { "binding": "PLAYTEST_KV", "id": "PASTE_KV_ID_HERE" }
+    { "binding": "PLAYTEST_KV", "id": "30593a9cacc74b15b65c25bed281a83e" }
   ]
 }
