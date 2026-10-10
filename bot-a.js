@@ -7,7 +7,7 @@
 // /rsvp_create channel_category:<category> [image:<file>]
 //     -> opens a popup (name, category, description, where to announce, ping).
 //        If the category is "Other", a button appears to type a custom one.
-//        Creates: a role, a private text channel (named after the RSVP, inside the
+//        Creates: a role, a private announcement channel (named after the RSVP, inside the
 //        chosen Discord category, visible only to people with the role, only admins can
 //        talk), and an announcement post with I'm interested / Opt out buttons.
 //        Allowed: administrators, plus any role added with /rsvp_roles.
@@ -538,7 +538,8 @@ function buildButtons(roleId) {
 
 // Private channel: hidden from everyone except the RSVP role (and admins, who
 // can always see everything). The role can read but not send or start threads.
-function buildPrivateChannelBody(name, parentId, roleId, guildId, botId) {
+// type 5 = announcement channel, type 0 = regular text channel
+function buildPrivateChannelBody(name, parentId, roleId, guildId, botId, type = 5) {
   const overwrites = [
     { id: guildId, type: 0, allow: '0', deny: VIEW_CHANNEL.toString() }, // @everyone
     {
@@ -557,7 +558,7 @@ function buildPrivateChannelBody(name, parentId, roleId, guildId, botId) {
       deny: '0'
     });
   }
-  return { name: name.slice(0, 100), type: 0, parent_id: parentId, permission_overwrites: overwrites };
+  return { name: name.slice(0, 100), type, parent_id: parentId, permission_overwrites: overwrites };
 }
 
 async function finalizeRsvp(interaction, d, env) {
@@ -585,12 +586,20 @@ async function finalizeRsvp(interaction, d, env) {
   }
   const role = await roleRes.json();
 
-  // 3) the private channel
-  const chRes = await discordApi(`/guilds/${guildId}/channels`, {
+  // 3) the private channel: an announcement channel when the server has Community
+  //    enabled (Discord requires it for that type), otherwise a regular text channel
+  const createChannel = type => discordApi(`/guilds/${guildId}/channels`, {
     method: 'POST',
     headers: { 'X-Audit-Log-Reason': 'RSVP created' },
-    body: JSON.stringify(buildPrivateChannelBody(d.name, d.parentId, role.id, guildId, interaction.application_id))
+    body: JSON.stringify(buildPrivateChannelBody(d.name, d.parentId, role.id, guildId, interaction.application_id, type))
   }, env);
+
+  let chRes = await createChannel(5);
+  let usedFallback = false;
+  if (!chRes.ok) {
+    chRes = await createChannel(0);
+    usedFallback = true;
+  }
   if (!chRes.ok) {
     const detail = (await chRes.text()).slice(0, 200);
     await discordApi(`/guilds/${guildId}/roles/${role.id}`, { method: 'DELETE' }, env);
@@ -657,8 +666,12 @@ async function finalizeRsvp(interaction, d, env) {
 
   return `Done! Posted **${d.name}** in <#${d.announceChannelId}>` +
     (d.pingEveryone ? ' with @everyone' : '') + '.\n' +
-    `Private channel: <#${channel.id}> (only people who RSVP can see it, and only admins can talk).\n` +
-    `Role: <@&${role.id}>` + saveWarning;
+    `Private ${usedFallback ? 'channel' : 'announcement channel'}: <#${channel.id}> (only people who RSVP can see it, and only admins can talk).\n` +
+    `Role: <@&${role.id}>` +
+    (usedFallback
+      ? '\nℹ️ I made a regular text channel, because announcement channels need Community turned on (Server Settings, then Enable Community).'
+      : '') +
+    saveWarning;
 }
 
 // ---------- editing and deleting RSVPs ----------
