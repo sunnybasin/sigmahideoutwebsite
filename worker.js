@@ -237,12 +237,17 @@ async function handleTeamSignoff(request, env) {
     try { body = await request.json(); } catch { return jsonResponse({ error: 'Invalid request.' }, 400); }
     const allowed = ['nda', 'policies', 'agreement'];
     if (!allowed.includes(body.section)) return jsonResponse({ error: 'Unknown section.' }, 400);
+    const typedSignature = typeof body.typedSignature === 'string' ? body.typedSignature.trim() : '';
+    if (typedSignature.length < 2 || typedSignature.length > 120) {
+      return jsonResponse({ error: 'Please provide a typed signature between 2 and 120 characters.' }, 400);
+    }
     const raw = await env.GALLERY_KV.get(key);
     let record = {};
     try { record = raw ? JSON.parse(raw) : {}; } catch {}
     if (!record[body.section]) {
       record[body.section] = {
         accepted: true,
+        typedSignature,
         acceptedAt: new Date().toISOString(),
         discordId: session.discordId,
         usernameAtSigning: session.username
