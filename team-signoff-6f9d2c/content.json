@@ -1,22 +1,9 @@
 {
   "pageTitle": "Team Sign-Off",
   "sections": [
-    {
-      "id": "nda",
-      "title": "NDA",
-      "content": ""
-    },
-    {
-      "id": "policies",
-      "title": "Team Policies",
-      "content": ""
-    },
-    {
-      "id": "agreement",
-      "title": "Agreement",
-      "content": ""
-    }
-  ],
-  "overviewTitle": "Agreement Overview",
-  "overviewContent": ""
+    { "id": "overview", "letter": "A", "title": "Agreement Overview", "content": "" },
+    { "id": "agreement", "letter": "B", "title": "Agreement", "content": "" },
+    { "id": "policies", "letter": "C", "title": "Team Policies", "content": "" },
+    { "id": "nda", "letter": "D", "title": "NDA", "content": "" }
+  ]
 }
