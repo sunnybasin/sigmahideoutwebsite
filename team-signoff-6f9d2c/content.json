@@ -1,0 +1,20 @@
+{
+  "pageTitle": "Team Sign-Off",
+  "sections": [
+    {
+      "id": "nda",
+      "title": "NDA",
+      "content": ""
+    },
+    {
+      "id": "policies",
+      "title": "Team Policies",
+      "content": ""
+    },
+    {
+      "id": "agreement",
+      "title": "Agreement",
+      "content": ""
+    }
+  ]
+}
