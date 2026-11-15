@@ -1,0 +1,90 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Team Sign-Off | Sigma Hideout</title>
+<style>
+:root{--bg:#0f0c0c;--panel:#191313;--panel2:#211919;--red:#b43838;--text:#ecd9d9;--muted:#a99999;--line:#382828}
+*{box-sizing:border-box}body{margin:0;background:var(--bg);color:var(--text);font-family:Inter,Segoe UI,Arial,sans-serif;min-height:100vh}
+main{width:min(900px,calc(100% - 32px));margin:54px auto}.top{display:flex;justify-content:space-between;align-items:center;gap:16px;margin-bottom:28px}
+.eyebrow{color:var(--red);text-transform:uppercase;letter-spacing:.16em;font-size:.75rem;font-weight:700}
+h1{font-size:clamp(2rem,5vw,3rem);margin:8px 0}.muted{color:var(--muted);line-height:1.6}
+.identity{display:flex;align-items:center;gap:10px;color:var(--muted);font-size:.9rem}.identity img{width:34px;height:34px;border-radius:50%}
+.panel{background:var(--panel);border:1px solid var(--line);border-radius:16px;padding:24px}
+.tabs{display:flex;gap:8px;flex-wrap:wrap;margin:0 0 18px}.tab{background:var(--panel2);border:1px solid var(--line);color:var(--muted);padding:12px 18px;border-radius:10px;cursor:pointer;font-weight:650}
+.tab[aria-selected=true]{background:#3a1d1d;border-color:var(--red);color:var(--text)}
+.section-title{margin:0 0 8px;font-size:1.5rem}.content{min-height:180px;white-space:pre-wrap;line-height:1.75;color:#e0d0d0;padding:18px 0}
+.empty{color:#6f6262;font-style:italic}
+.actions{border-top:1px solid var(--line);padding-top:18px;display:flex;align-items:center;justify-content:space-between;gap:12px;flex-wrap:wrap}
+button.primary{border:0;background:var(--red);color:white;padding:12px 18px;border-radius:9px;font-weight:700;cursor:pointer}
+button.primary:disabled{opacity:.5;cursor:not-allowed}.status{color:var(--muted);font-size:.9rem}.signed{color:#91c99d}
+.notice{padding:14px;border:1px solid var(--line);border-radius:10px;background:var(--panel2);margin-bottom:18px}
+a{color:#d77a7a}.hidden{display:none}
+@media(max-width:600px){main{margin:28px auto}.panel{padding:18px}.top{align-items:flex-start;flex-direction:column}}
+</style>
+</head>
+<body>
+<main>
+ <div class="top"><div><div class="eyebrow">Sigma Hideout · Team Portal</div><h1 id="page-title">Team Sign-Off</h1><div class="muted">Review each section and record your sign-off using your Discord account.</div></div><div class="identity" id="identity"></div></div>
+ <div id="login" class="panel hidden"><h2>Discord login required</h2><p class="muted">Sign in with your Discord account to view the team sign-off and save your responses.</p><button class="primary" id="login-btn">Continue with Discord</button></div>
+ <div id="app" class="hidden">
+  <div class="notice muted">Each section is signed separately. Your Discord account and the time of acceptance are saved with each sign-off.</div>
+  <nav class="tabs" id="tabs" aria-label="Sign-off sections"></nav>
+  <section class="panel" id="section-panel">
+   <h2 class="section-title" id="section-title"></h2>
+   <div class="content" id="section-content"></div>
+   <div class="actions"><span class="status" id="section-status">Not signed</span><button class="primary" id="sign-btn">I agree and sign off</button></div>
+  </section>
+  <p class="muted" id="progress" style="text-align:right;margin-top:14px"></p>
+ </div>
+ <p class="muted" id="error"></p>
+</main>
+<script>
+const sectionIds=['nda','policies','agreement'];
+let config=null,signoffs={},active='nda';
+const $=id=>document.getElementById(id);
+async function load(){
+ try{
+  const me=await fetch('/api/auth/me').then(r=>r.json());
+  if(!me.loggedIn){$('login').classList.remove('hidden');$('login-btn').onclick=()=>location.href='/api/auth/login?return='+encodeURIComponent('/team-signoff-6f9d2c/');return;}
+  const data=await fetch('/api/team-signoff').then(async r=>{if(!r.ok)throw Error((await r.json()).error||'Could not load sign-offs');return r.json()});
+  signoffs=data.signoffs||{};
+  $('identity').innerHTML='';
+  if(data.user.avatar){const img=document.createElement('img');img.src=data.user.avatar;img.alt='';$('identity').append(img);}
+  const name=document.createElement('span');name.textContent=data.user.username;$('identity').append(name);
+  config=await fetch('/team-signoff-6f9d2c/content.json').then(r=>r.json());
+  $('page-title').textContent=config.pageTitle||'Team Sign-Off';
+  $('app').classList.remove('hidden');render();
+ }catch(e){$('error').textContent=e.message;}
+}
+function render(){
+ const tabs=$('tabs');tabs.replaceChildren();
+ for(const id of sectionIds){
+  const section=config.sections.find(x=>x.id===id)||{id,title:id};
+  const b=document.createElement('button');b.className='tab';b.textContent=section.title+(signoffs[id]?' ✓':'');b.setAttribute('aria-selected',String(active===id));b.onclick=()=>{active=id;render()};tabs.append(b);
+ }
+ const section=config.sections.find(x=>x.id===active)||{title:active,content:''};
+ $('section-title').textContent=section.title;
+ $('section-content').textContent=section.content||'';
+ $('section-content').classList.toggle('empty',!section.content);
+ const record=signoffs[active];
+ $('section-status').textContent=record?'Signed by your Discord account · '+new Date(record.acceptedAt).toLocaleString():'Not signed yet';
+ $('section-status').className='status'+(record?' signed':'');
+ $('sign-btn').disabled=!!record;$('sign-btn').textContent=record?'Signed':'I agree and sign off';
+ $('sign-btn').onclick=sign;
+ const count=sectionIds.filter(id=>signoffs[id]).length;
+ $('progress').textContent=count+' of 3 sections signed';
+}
+async function sign(){
+ if(!confirm('Confirm that you agree to this section and want to record your sign-off?'))return;
+ $('sign-btn').disabled=true;
+ try{
+  const r=await fetch('/api/team-signoff',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({section:active})});
+  const result=await r.json();if(!r.ok)throw Error(result.error||'Could not save sign-off');
+  signoffs=result.signoffs;render();
+ }catch(e){$('error').textContent=e.message;$('sign-btn').disabled=false;}
+}
+load();
+</script>
+</body></html>
