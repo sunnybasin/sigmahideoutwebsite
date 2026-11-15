@@ -1,118 +1,21 @@
 <!DOCTYPE html>
-<html lang="en">
-<head>
-<meta charset="UTF-8">
-<meta name="viewport" content="width=device-width, initial-scale=1">
-<title>Team Sign-Off | Sigma Hideout</title>
+<html lang="en"><head><meta charset="UTF-8"><meta name="viewport" content="width=device-width, initial-scale=1"><title>Team Sign-Off | Sigma Hideout</title>
 <style>
-:root{--bg:#0f0c0c;--panel:#191313;--panel2:#211919;--red:#b43838;--text:#ecd9d9;--muted:#a99999;--line:#382828}
-*{box-sizing:border-box}body{margin:0;background:var(--bg);color:var(--text);font-family:Inter,Segoe UI,Arial,sans-serif;min-height:100vh}
-main{width:min(900px,calc(100% - 32px));margin:54px auto}.top{display:flex;justify-content:space-between;align-items:center;gap:16px;margin-bottom:28px}
-.eyebrow{color:var(--red);text-transform:uppercase;letter-spacing:.16em;font-size:.75rem;font-weight:700}
-h1{font-size:clamp(2rem,5vw,3rem);margin:8px 0}.muted{color:var(--muted);line-height:1.6}
-.identity{display:flex;align-items:center;gap:10px;color:var(--muted);font-size:.9rem}.identity img{width:34px;height:34px;border-radius:50%}
-.panel{background:var(--panel);border:1px solid var(--line);border-radius:16px;padding:24px}
-.tabs{display:flex;gap:8px;flex-wrap:wrap;margin:0 0 18px}.tab{background:var(--panel2);border:1px solid var(--line);color:var(--muted);padding:12px 18px;border-radius:10px;cursor:pointer;font-weight:650}
-.tab[aria-selected=true]{background:#3a1d1d;border-color:var(--red);color:var(--text)}
-.section-title{margin:0 0 8px;font-size:1.5rem}.content{min-height:180px;white-space:pre-wrap;line-height:1.75;color:#e0d0d0;padding:18px 0}
-.empty{color:#6f6262;font-style:italic}
-.actions{border-top:1px solid var(--line);padding-top:18px;display:flex;align-items:center;justify-content:space-between;gap:12px;flex-wrap:wrap}
-button.primary{border:0;background:var(--red);color:white;padding:12px 18px;border-radius:9px;font-weight:700;cursor:pointer}
-button.primary:disabled{opacity:.5;cursor:not-allowed}.status{color:var(--muted);font-size:.9rem}.signed{color:#91c99d}
-.notice{padding:14px;border:1px solid var(--line);border-radius:10px;background:var(--panel2);margin-bottom:18px}
-.signature{margin:8px 0 18px;padding:16px;border:1px solid var(--line);border-radius:10px;background:var(--panel2)}
-.signature label{display:block;font-weight:700;margin-bottom:8px}
-.signature input{width:100%;background:#100d0d;color:var(--text);border:1px solid #594040;border-radius:8px;padding:12px;font:inherit}
-.signature input:focus{outline:2px solid var(--red);outline-offset:2px}
-.signature-help{font-size:.85rem;color:var(--muted);margin:8px 0 0}
-.signature-record{font-size:.9rem;color:var(--muted);margin-top:8px}
-a{color:#d77a7a}.hidden{display:none}
-@media(max-width:600px){main{margin:28px auto}.panel{padding:18px}.top{align-items:flex-start;flex-direction:column}}
-</style>
-</head>
-<body>
-<main>
- <div class="top"><div><div class="eyebrow">Sigma Hideout · Team Portal</div><h1 id="page-title">Team Sign-Off</h1><div class="muted">Review each section and record your sign-off using your Discord account.</div></div><div class="identity" id="identity"></div></div>
- <div id="login" class="panel hidden"><h2>Discord login required</h2><p class="muted">Sign in with your Discord account to view the team sign-off and save your responses.</p><button class="primary" id="login-btn">Continue with Discord</button></div>
- <div id="app" class="hidden">
-  <section class="panel" id="overview-panel" style="margin-bottom:18px">
-   <h2 class="section-title" id="overview-title">Agreement Overview</h2>
-   <div class="content" id="overview-content" style="min-height:0;padding-bottom:0"></div>
-  </section>
-  <div class="notice muted">Each section is signed separately. Your Discord account and the time of acceptance are saved with each sign-off.</div>
-  <nav class="tabs" id="tabs" aria-label="Sign-off sections"></nav>
-  <section class="panel" id="section-panel">
-   <h2 class="section-title" id="section-title"></h2>
-   <div class="content" id="section-content"></div>
-   <div class="signature" id="signature-box">
-    <label for="typed-signature">Type your full name to sign this section</label>
-    <input id="typed-signature" type="text" maxlength="120" autocomplete="name" placeholder="Your full name">
-    <p class="signature-help">Typing your name records it as your electronic sign-off, together with your authenticated Discord account and the date and time.</p>
-    <p class="signature-record hidden" id="signature-record"></p>
-   </div>
-   <div class="actions"><span class="status" id="section-status">Not signed</span><button class="primary" id="sign-btn">Type your name to sign</button></div>
-   <div class="notice muted" style="margin-top:18px">After reviewing and signing this section, please send a screenshot of this page to either <strong>@sunnybasin</strong> or <strong>@ragdulls</strong>.</div>
-  </section>
-  <p class="muted" id="progress" style="text-align:right;margin-top:14px"></p>
- </div>
- <p class="muted" id="error"></p>
-</main>
-<script>
-const sectionIds=['nda','policies','agreement'];
-let config=null,signoffs={},active='nda';
-const $=id=>document.getElementById(id);
-async function load(){
- try{
-  const me=await fetch('/api/auth/me').then(r=>r.json());
-  if(!me.loggedIn){$('login').classList.remove('hidden');$('login-btn').onclick=()=>location.href='/api/auth/login?return='+encodeURIComponent('/team-signoff-6f9d2c/');return;}
-  const data=await fetch('/api/team-signoff').then(async r=>{if(!r.ok)throw Error((await r.json()).error||'Could not load sign-offs');return r.json()});
-  signoffs=data.signoffs||{};
-  $('identity').innerHTML='';
-  if(data.user.avatar){const img=document.createElement('img');img.src=data.user.avatar;img.alt='';$('identity').append(img);}
-  const name=document.createElement('span');name.textContent=data.user.username;$('identity').append(name);
-  config=await fetch('/team-signoff-6f9d2c/content.json').then(r=>r.json());
-  $('page-title').textContent=config.pageTitle||'Team Sign-Off';
-  $('overview-title').textContent=config.overviewTitle||'Agreement Overview';
-  $('overview-content').textContent=config.overviewContent||'';
-  $('overview-content').classList.toggle('empty',!config.overviewContent);
-  $('app').classList.remove('hidden');render();
- }catch(e){$('error').textContent=e.message;}
-}
-function render(){
- const tabs=$('tabs');tabs.replaceChildren();
- for(const id of sectionIds){
-  const section=config.sections.find(x=>x.id===id)||{id,title:id};
-  const b=document.createElement('button');b.className='tab';b.textContent=section.title+(signoffs[id]?' ✓':'');b.setAttribute('aria-selected',String(active===id));b.onclick=()=>{active=id;render()};tabs.append(b);
- }
- const section=config.sections.find(x=>x.id===active)||{title:active,content:''};
- $('section-title').textContent=section.title;
- $('section-content').textContent=section.content||'';
- $('section-content').classList.toggle('empty',!section.content);
- const record=signoffs[active];
- $('section-status').textContent=record?'Signed by your Discord account · '+new Date(record.acceptedAt).toLocaleString():'Not signed yet';
- $('section-status').className='status'+(record?' signed':'');
- const signatureInput=$('typed-signature');
- const signatureRecord=$('signature-record');
- signatureInput.value='';
- signatureInput.disabled=!!record;
- signatureRecord.classList.toggle('hidden',!record);
- signatureRecord.textContent=record ? (record.typedSignature ? 'Typed signature: '+record.typedSignature : 'This section was signed before typed signatures were enabled.') : '';
- $('sign-btn').disabled=!!record;$('sign-btn').textContent=record?'Signed':'Type your name to sign';
- $('sign-btn').onclick=sign;
- const count=sectionIds.filter(id=>signoffs[id]).length;
- $('progress').textContent=count+' of 3 sections signed';
-}
-async function sign(){
- const typedSignature=$('typed-signature').value.trim();
- if(typedSignature.length<2){$('error').textContent='Please type your full name before signing.';$('typed-signature').focus();return;}
- if(!confirm('By continuing, you confirm that you agree to this section and want to record your typed signature.'))return;
- $('error').textContent='';$('sign-btn').disabled=true;
- try{
-  const r=await fetch('/api/team-signoff',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({section:active,typedSignature})});
-  const result=await r.json();if(!r.ok)throw Error(result.error||'Could not save sign-off');
-  signoffs=result.signoffs;render();
- }catch(e){$('error').textContent=e.message;$('sign-btn').disabled=false;}
-}
+:root{--bg:#0f0c0c;--panel:#191313;--panel2:#211919;--red:#b43838;--text:#ecd9d9;--muted:#a99999;--line:#382828;--green:#91c99d}*{box-sizing:border-box}body{margin:0;background:var(--bg);color:var(--text);font-family:Inter,Segoe UI,Arial,sans-serif;min-height:100vh}main{width:min(960px,calc(100% - 32px));margin:48px auto}.top{display:flex;justify-content:space-between;align-items:center;gap:16px;margin-bottom:26px}.eyebrow{color:var(--red);text-transform:uppercase;letter-spacing:.16em;font-size:.75rem;font-weight:700}h1{font-size:clamp(2rem,5vw,3rem);margin:8px 0}.muted{color:var(--muted);line-height:1.6}.identity{display:flex;align-items:center;gap:10px;color:var(--muted);font-size:.9rem}.identity img{width:34px;height:34px;border-radius:50%}.panel{background:var(--panel);border:1px solid var(--line);border-radius:16px;padding:24px}.tabs{display:flex;gap:8px;flex-wrap:wrap;margin:0 0 18px}.tab{background:var(--panel2);border:1px solid var(--line);color:var(--muted);padding:12px 15px;border-radius:10px;cursor:pointer;font-weight:650}.tab[aria-selected=true]{background:#3a1d1d;border-color:var(--red);color:var(--text)}.section-title{margin:0 0 8px;font-size:1.5rem}.content{min-height:180px;white-space:pre-wrap;line-height:1.75;color:#e0d0d0;padding:18px 0}.empty{color:#6f6262;font-style:italic}.actions{border-top:1px solid var(--line);padding-top:18px;display:flex;align-items:center;justify-content:space-between;gap:12px;flex-wrap:wrap}button.primary{border:0;background:var(--red);color:white;padding:12px 18px;border-radius:9px;font-weight:700;cursor:pointer}button:disabled{opacity:.5;cursor:not-allowed}.status{color:var(--muted);font-size:.9rem}.signed,.check{color:var(--green)}.notice{padding:14px;border:1px solid var(--line);border-radius:10px;background:var(--panel2);margin:0 0 18px}.signature-box{margin:8px 0 18px;padding:16px;border:1px solid var(--line);border-radius:10px;background:var(--panel2)}.field{display:block;margin:0 0 14px}.field:last-child{margin-bottom:0}.field label{display:block;font-weight:700;margin-bottom:8px}.field input{width:100%;background:#100d0d;color:var(--text);border:1px solid #594040;border-radius:8px;padding:12px;font:inherit}.field input:focus{outline:2px solid var(--red);outline-offset:2px}.signature-input{font-family:"Segoe Script","Brush Script MT",cursive!important;font-size:1.4rem!important}.field-help,.small{font-size:.84rem;color:var(--muted);margin:7px 0 0}.completion-list{display:grid;gap:12px;margin-top:20px}.completion-card{border:1px solid var(--line);border-radius:12px;padding:16px;background:var(--panel2)}.completion-head{display:flex;justify-content:space-between;align-items:center;gap:12px}.check{font-size:1.2rem;font-weight:800}.printed{margin:12px 0 4px;color:var(--muted);font-size:.9rem}.signature-display{font-family:"Segoe Script","Brush Script MT",cursive;font-size:1.7rem;min-height:34px;overflow-wrap:anywhere}.hidden{display:none!important}a{color:#d77a7a}@media(max-width:600px){main{margin:26px auto}.panel{padding:18px}.top{align-items:flex-start;flex-direction:column}.tab{flex:1 1 42%}}
+</style></head><body><main>
+<div class="top"><div><div class="eyebrow">Sigma Hideout · Team Portal</div><h1 id="page-title">Team Sign-Off</h1><div class="muted">Complete sections A–D in order, then review your recorded sign-offs.</div></div><div class="identity" id="identity"></div></div>
+<div id="login" class="panel hidden"><h2>Discord login required</h2><p class="muted">Sign in with your Discord account to view and complete the team sign-off.</p><button class="primary" id="login-btn">Continue with Discord</button></div>
+<div id="app" class="hidden"><div class="notice muted">Complete sections A, B, C, and D in order. Each section requires your Discord username and a typed signature. Your sign-offs are saved to your Discord account.</div><nav class="tabs" id="tabs" aria-label="Sign-off sections"></nav>
+<section class="panel" id="section-panel"><h2 class="section-title" id="section-title"></h2><div class="content" id="section-content"></div>
+<div class="signature-box"><div class="field"><label for="printed-username">Discord username (printed name)</label><input id="printed-username" type="text" maxlength="80" autocomplete="off" placeholder="Type your Discord username"><p class="field-help">Enter the Discord username shown at the top of this page.</p></div><div class="field"><label for="typed-signature">Signature</label><input class="signature-input" id="typed-signature" type="text" maxlength="120" autocomplete="off" placeholder="Type your signature"><p class="field-help">Type your signature in the box above to sign this section.</p></div></div>
+<div class="actions"><span class="status" id="section-status">Not signed yet</span><button class="primary" id="sign-btn">Sign this section</button></div><div class="notice muted" style="margin:18px 0 0">After reviewing and signing this section, please send a screenshot of this page to either <strong>@sunnybasin</strong> or <strong>@ragdulls</strong>.</div></section>
+<section class="panel hidden" id="completion-panel"></section><p class="muted" id="progress" style="text-align:right;margin-top:14px"></p><p class="muted hidden" id="admin-link-wrap" style="text-align:right"><a href="/team-signoff-6f9d2c/admin/">Open admin sign-off records</a></p></div><p class="muted" id="error"></p>
+</main><script>
+const sectionIds=['overview','agreement','policies','nda'];const letters={overview:'A',agreement:'B',policies:'C',nda:'D'};let config=null,signoffs={},active='overview';const $=id=>document.getElementById(id);
+async function load(){try{const me=await fetch('/api/auth/me').then(r=>r.json());if(!me.loggedIn){$('login').classList.remove('hidden');$('login-btn').onclick=()=>location.href='/api/auth/login?return='+encodeURIComponent('/team-signoff-6f9d2c/');return;}const data=await fetch('/api/team-signoff').then(async r=>{if(!r.ok)throw Error((await r.json()).error||'Could not load sign-offs');return r.json()});signoffs=data.signoffs||{};$('identity').replaceChildren();if(data.user.avatar){const img=document.createElement('img');img.src=data.user.avatar;img.alt='';$('identity').append(img);}const n=document.createElement('span');n.textContent='@'+data.user.username;$('identity').append(n);config=await fetch('/team-signoff-6f9d2c/content.json').then(r=>r.json());$('page-title').textContent=config.pageTitle||'Team Sign-Off';$('admin-link-wrap').classList.toggle('hidden',!me.isAdmin);$('app').classList.remove('hidden');render();}catch(e){$('error').textContent=e.message;}}
+function section(id){return config.sections.find(s=>s.id===id)||{id,title:id,content:''};}
+function render(){const tabs=$('tabs');tabs.replaceChildren();[...sectionIds,'completion'].forEach(id=>{const done=id==='completion',s=done?{title:'Completion'}:section(id),b=document.createElement('button');b.className='tab';b.textContent=done?'E · Completion':letters[id]+' · '+s.title+(signoffs[id]?' ✓':'');const idx=sectionIds.indexOf(id);const locked=!done&&sectionIds.slice(0,idx).some(previous=>!signoffs[previous]);b.disabled=locked;b.title=locked?'Complete the previous section first':'';b.setAttribute('aria-selected',String(active===id));b.onclick=()=>{active=id;render();};tabs.append(b);});if(active==='completion'){renderCompletion();return;}$('completion-panel').classList.add('hidden');$('section-panel').classList.remove('hidden');const s=section(active),r=signoffs[active];$('section-title').textContent=letters[active]+' · '+s.title;$('section-content').textContent=s.content||'';$('section-content').classList.toggle('empty',!s.content);$('section-status').textContent=r?'Signed ✓ · '+new Date(r.acceptedAt).toLocaleString():'Not signed yet';$('section-status').className='status'+(r?' signed':'');$('printed-username').value=r?(r.printedUsername||r.usernameAtSigning||''):'';$('typed-signature').value=r?(r.typedSignature||''):'';$('printed-username').disabled=!!r;$('typed-signature').disabled=!!r;$('sign-btn').disabled=!!r;$('sign-btn').textContent=r?'Signed ✓':'Sign section '+letters[active];$('sign-btn').onclick=sign;$('progress').textContent=sectionIds.filter(id=>signoffs[id]).length+' of 4 sections signed';}
+function renderCompletion(){$('section-panel').classList.add('hidden');const panel=$('completion-panel');panel.classList.remove('hidden');panel.replaceChildren();const title=document.createElement('h2');title.className='section-title';title.textContent='Sign-Off Completion';panel.append(title);const intro=document.createElement('p');intro.className='muted';intro.textContent='Your printed Discord username and typed signature for each section are shown below.';panel.append(intro);const list=document.createElement('div');list.className='completion-list';sectionIds.forEach(id=>{const s=section(id),r=signoffs[id],card=document.createElement('div');card.className='completion-card';const head=document.createElement('div');head.className='completion-head';const h=document.createElement('strong');h.textContent=letters[id]+' · '+s.title;head.append(h);const check=document.createElement('span');check.className='check';check.textContent=r?'✓ Signed':'○ Pending';head.append(check);card.append(head);const printed=document.createElement('div');printed.className='printed';printed.textContent='Printed signature: '+(r?(r.printedUsername||r.usernameAtSigning||'—'):'Not signed');card.append(printed);const sig=document.createElement('div');sig.className='signature-display';sig.textContent=r?(r.typedSignature||'—'):'';card.append(sig);const when=document.createElement('div');when.className='small';when.textContent=r?'Signed on '+new Date(r.acceptedAt).toLocaleString():'Awaiting sign-off';card.append(when);list.append(card);});panel.append(list);const reminder=document.createElement('div');reminder.className='notice muted';reminder.style.marginTop='18px';reminder.textContent='Please send a screenshot of this completion page to either @sunnybasin or @ragdulls.';panel.append(reminder);$('progress').textContent=sectionIds.filter(id=>signoffs[id]).length+' of 4 sections signed';}
+async function sign(){const printedUsername=$('printed-username').value.trim(),typedSignature=$('typed-signature').value.trim();if(!printedUsername){$('error').textContent='Please type your Discord username.';$('printed-username').focus();return;}if(!typedSignature){$('error').textContent='Please type your signature.';$('typed-signature').focus();return;}if(!confirm('By continuing, you confirm that you agree to this section and want to record your typed signature.'))return;$('error').textContent='';$('sign-btn').disabled=true;try{const r=await fetch('/api/team-signoff',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({section:active,printedUsername,typedSignature})});const result=await r.json();if(!r.ok)throw Error(result.error||'Could not save sign-off');signoffs=result.signoffs;render();}catch(e){$('error').textContent=e.message;$('sign-btn').disabled=false;}}
 load();
-</script>
-</body></html>
+</script></body></html>
