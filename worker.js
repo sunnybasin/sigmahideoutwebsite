@@ -52,6 +52,8 @@ const USAGE_KEY = 'total-storage-bytes';
 const SESSION_PREFIX = 'session:';
 const SESSION_TTL_SECONDS = 60 * 60 * 24 * 30; // 30 days
 const SESSION_COOKIE = 'sh_session';
+const TEAM_SIGNOFF_PREFIX = 'team-signoff:';
+const OAUTH_STATE_PREFIX = 'oauth-state:';
 
 function extFromMime(mime) {
   const map = {
@@ -132,11 +134,16 @@ function discordRedirectUri(url) {
 async function handleAuthLogin(request, env) {
   const url = new URL(request.url);
   const redirectUri = discordRedirectUri(url);
+  const returnTo = url.searchParams.get('return') || '/gallery/upload';
+  const safeReturnTo = returnTo.startsWith('/') && !returnTo.startsWith('//') ? returnTo : '/gallery/upload';
+  const state = crypto.randomUUID();
+  await env.GALLERY_KV.put(OAUTH_STATE_PREFIX + state, safeReturnTo, { expirationTtl: 600 });
   const params = new URLSearchParams({
     client_id: env.DISCORD_CLIENT_ID,
     redirect_uri: redirectUri,
     response_type: 'code',
-    scope: 'identify guilds.members.read'
+    scope: 'identify guilds.members.read',
+    state
   });
   return Response.redirect(`https://discord.com/oauth2/authorize?${params.toString()}`, 302);
 }
@@ -145,6 +152,10 @@ async function handleAuthCallback(request, env) {
   const url = new URL(request.url);
   const code = url.searchParams.get('code');
   if (!code) return jsonResponse({ error: 'Missing code from Discord.' }, 400);
+  const state = url.searchParams.get('state');
+  const returnTo = state ? await env.GALLERY_KV.get(OAUTH_STATE_PREFIX + state) : null;
+  if (!state || !returnTo) return jsonResponse({ error: 'Login session expired. Please try again.' }, 400);
+  await env.GALLERY_KV.delete(OAUTH_STATE_PREFIX + state);
 
   const redirectUri = discordRedirectUri(url);
 
@@ -200,10 +211,47 @@ async function handleAuthCallback(request, env) {
   return new Response(null, {
     status: 302,
     headers: {
-      Location: '/gallery/upload',
+      Location: returnTo,
       'Set-Cookie': sessionCookieHeader(sessionId, SESSION_TTL_SECONDS)
     }
   });
+}
+
+async function handleTeamSignoff(request, env) {
+  const session = await getSession(request, env);
+  if (!session) return jsonResponse({ error: 'Discord login required.' }, 401);
+
+  const key = TEAM_SIGNOFF_PREFIX + session.discordId;
+  if (request.method === 'GET') {
+    const raw = await env.GALLERY_KV.get(key);
+    let record = {};
+    try { record = raw ? JSON.parse(raw) : {}; } catch {}
+    return jsonResponse({
+      user: { id: session.discordId, username: session.username, avatar: session.avatar },
+      signoffs: record
+    });
+  }
+
+  if (request.method === 'POST') {
+    let body;
+    try { body = await request.json(); } catch { return jsonResponse({ error: 'Invalid request.' }, 400); }
+    const allowed = ['nda', 'policies', 'agreement'];
+    if (!allowed.includes(body.section)) return jsonResponse({ error: 'Unknown section.' }, 400);
+    const raw = await env.GALLERY_KV.get(key);
+    let record = {};
+    try { record = raw ? JSON.parse(raw) : {}; } catch {}
+    if (!record[body.section]) {
+      record[body.section] = {
+        accepted: true,
+        acceptedAt: new Date().toISOString(),
+        discordId: session.discordId,
+        usernameAtSigning: session.username
+      };
+      await env.GALLERY_KV.put(key, JSON.stringify(record));
+    }
+    return jsonResponse({ ok: true, signoffs: record });
+  }
+  return new Response('Method not allowed', { status: 405 });
 }
 
 async function handleAuthMe(request, env) {
@@ -1167,6 +1215,10 @@ export default {
 
       if (pathname.startsWith('/uploads/') && request.method === 'GET') {
         return await handleServeFile(pathname, env);
+      }
+
+      if (pathname === '/api/team-signoff' && (request.method === 'GET' || request.method === 'POST')) {
+        return await handleTeamSignoff(request, env);
       }
 
       if (pathname === '/api/auth/login' && request.method === 'GET') {
