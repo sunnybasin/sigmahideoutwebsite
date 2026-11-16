@@ -1,10 +1,15 @@
 <!DOCTYPE html>
 <html lang="en"><head><meta charset="UTF-8"><meta name="viewport" content="width=device-width,initial-scale=1"><title>Team Sign-Off Admin | Sigma Hideout</title><style>
 :root{--bg:#0f0c0c;--panel:#191313;--panel2:#211919;--text:#ecd9d9;--muted:#a99999;--line:#382828;--green:#91c99d;--red:#b43838}*{box-sizing:border-box}body{margin:0;background:var(--bg);color:var(--text);font-family:Inter,Segoe UI,Arial,sans-serif}main{width:min(1100px,calc(100% - 32px));margin:44px auto}.eyebrow{color:var(--red);text-transform:uppercase;letter-spacing:.16em;font-size:.75rem;font-weight:700}h1{margin:8px 0 24px;font-size:clamp(2rem,5vw,3rem)}.muted{color:var(--muted);line-height:1.6}.person,.panel{background:var(--panel);border:1px solid var(--line);border-radius:14px;padding:20px;margin-bottom:14px}.person-head{display:flex;justify-content:space-between;gap:12px;align-items:center;flex-wrap:wrap}.person-name{font-size:1.1rem;font-weight:700}.grid{display:grid;grid-template-columns:repeat(4,minmax(0,1fr));gap:10px;margin-top:14px}.section{background:var(--panel2);border:1px solid var(--line);border-radius:10px;padding:12px;min-width:0}.ok{color:var(--green);font-weight:700}.pending,.small{color:var(--muted)}.signature-image{display:block;width:100%;max-width:100%;height:auto;max-height:120px;object-fit:contain;object-position:left center;background:#fff;border-radius:6px;margin-top:8px}.small{font-size:.82rem;overflow-wrap:anywhere;margin-top:6px}.actions{display:flex;gap:8px;flex-wrap:wrap;margin-top:12px}button{border:1px solid var(--line);background:var(--panel);color:var(--text);padding:8px 11px;border-radius:8px;cursor:pointer;font:inherit;font-size:.85rem}button:hover{border-color:#805252}.danger{border-color:#733737;color:#ffb1b1}.feedback{min-height:1.4em;margin:8px 0;color:#ffb1b1;font-size:.9rem}a{color:#d77a7a}@media(max-width:700px){.grid{grid-template-columns:repeat(2,minmax(0,1fr))}}@media(max-width:420px){.grid{grid-template-columns:1fr}}
-</style></head><body><main><div class="eyebrow">Sigma Hideout · Restricted admin</div><h1>Team Sign-Off Records</h1><p class="muted">Only accounts on the configured Discord admin list can view and manage these records. Reset a section to let that member sign it again, or delete all their records.</p><p><a href="/team-signoff-6f9d2c/">← Back to team sign-off</a></p><div id="message" class="panel">Loading sign-off records…</div><p id="feedback" class="feedback" role="status" aria-live="polite"></p><div id="records"></div></main><script>
+</style></head><body><main><div class="eyebrow">Sigma Hideout · Restricted admin</div><h1>Team Sign-Off Records</h1><p class="muted">Only accounts on the configured Discord admin list can view and manage these records. Reset a section to let that member sign it again, or delete all their records.</p><p><button id="signout" type="button">Sign out of Discord</button> <a href="/team-signoff-6f9d2c/">← Back to team sign-off</a></p><div id="message" class="panel">Loading sign-off records…</div><p id="feedback" class="feedback" role="status" aria-live="polite"></p><div id="records"></div></main><script>
 'use strict';
 const sections=[['overview','A · Agreement Overview'],['agreement','B · Agreement'],['policies','C · Team Policies'],['nda','D · NDA']];
 const message=document.getElementById('message'),out=document.getElementById('records'),feedback=document.getElementById('feedback');
+async function readApiJson(response){
+  const text=await response.text();
+  if(!text.trim())throw Error('The server returned an empty response (HTTP '+response.status+'). Make sure the updated Worker file was uploaded, then refresh this page.');
+  try{return JSON.parse(text);}catch{throw Error('The server returned an invalid response (HTTP '+response.status+'). Make sure the updated Worker file was uploaded, then refresh this page.');}
+}
 async function manageRecord(discordId,section){
   const deleting=!section;
   const prompt=deleting?'Delete every sign-off record for this Discord account? The member will be able to sign again.':'Reset this section? The member will need to sign it again.';
@@ -12,14 +17,14 @@ async function manageRecord(discordId,section){
   feedback.textContent='';
   try{
     const response=await fetch('/api/team-signoff/admin',{method:'DELETE',headers:{'Content-Type':'application/json'},body:JSON.stringify({discordId,...(section?{section}:{})})});
-    const result=await response.json();
+    const result=await readApiJson(response);
     if(!response.ok)throw Error(result.error||'Could not update this record.');
     feedback.textContent=deleting?'All records deleted.':sections.find(item=>item[0]===section)[1]+' reset.';
     await loadRecords();
   }catch(error){feedback.textContent=error.message;}
 }
 async function loadRecords(){
-  const response=await fetch('/api/team-signoff/admin'),data=await response.json();
+  const response=await fetch('/api/team-signoff/admin'),data=await readApiJson(response);
   if(!response.ok)throw Error(data.error||'Could not load records.');
   message.textContent=data.users.length+' Discord account(s) with at least one recorded sign-off.';
   out.replaceChildren();
@@ -48,9 +53,10 @@ async function loadRecords(){
     card.append(grid);out.append(card);
   });
 }
+document.getElementById('signout').addEventListener('click',async()=>{try{await fetch('/api/auth/logout',{method:'POST'});location.href='/team-signoff-6f9d2c/';}catch{feedback.textContent='Could not sign out. Please try again.';}});
 async function load(){
   try{
-    const me=await fetch('/api/auth/me').then(response=>response.json());
+    const authResponse=await fetch('/api/auth/me'),me=await readApiJson(authResponse);
     if(!me.loggedIn){location.href='/api/auth/login?return='+encodeURIComponent('/team-signoff-6f9d2c/admin/');return;}
     if(!me.isAdmin){message.textContent='You do not have permission to view these records.';return;}
     await loadRecords();
