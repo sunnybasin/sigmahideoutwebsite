@@ -292,6 +292,31 @@ async function handleTeamSignoffAdmin(request, env) {
     return jsonResponse({ error: 'Not authorized.' }, 403);
   }
 
+  if (request.method === 'DELETE') {
+    let body;
+    try { body = await request.json(); } catch { return jsonResponse({ error: 'Invalid request.' }, 400); }
+    const discordId = typeof body.discordId === 'string' ? body.discordId : '';
+    if (!/^\d{17,20}$/.test(discordId)) {
+      return jsonResponse({ error: 'A valid Discord account ID is required.' }, 400);
+    }
+    const key = TEAM_SIGNOFF_PREFIX + discordId;
+    if (body.section !== undefined) {
+      const allowed = ['overview', 'agreement', 'policies', 'nda'];
+      if (!allowed.includes(body.section)) return jsonResponse({ error: 'Unknown section.' }, 400);
+      const raw = await env.GALLERY_KV.get(key);
+      if (raw) {
+        let record;
+        try { record = JSON.parse(raw); } catch { return jsonResponse({ error: 'The saved record is invalid.' }, 500); }
+        delete record[body.section];
+        if (Object.keys(record).length) await env.GALLERY_KV.put(key, JSON.stringify(record));
+        else await env.GALLERY_KV.delete(key);
+      }
+      return jsonResponse({ ok: true, resetSection: body.section });
+    }
+    await env.GALLERY_KV.delete(key);
+    return jsonResponse({ ok: true, deleted: true });
+  }
+
   const users = [];
   let cursor;
   do {
@@ -1285,7 +1310,7 @@ export default {
         return await handleTeamSignoff(request, env);
       }
 
-      if (pathname === '/api/team-signoff/admin' && request.method === 'GET') {
+      if (pathname === '/api/team-signoff/admin' && (request.method === 'GET' || request.method === 'DELETE')) {
         return await handleTeamSignoffAdmin(request, env);
       }
 
