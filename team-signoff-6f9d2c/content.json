@@ -1,7 +1,7 @@
 {
   "pageTitle": "Team Sign-Off",
   "sections": [
-    { "id": "overview", "letter": "A", "title": "Agreement Overview", "content": "" },
+    { "id": "overview", "letter": "A", "title": "Agreement Overview", "content": "  This Sign-Off spells out the policies and expectations of being on this team. Please read all of these in depth prior to signing off. The reason of these signing off is because of recent lack of interest volunteers have shown towards team projects. \n  This document gives and overview of the following agreements you are about to sign." },
     { "id": "agreement", "letter": "B", "title": "Agreement", "content": "" },
     { "id": "policies", "letter": "C", "title": "Team Policies", "content": "" },
     { "id": "nda", "letter": "D", "title": "NDA", "content": "" }
