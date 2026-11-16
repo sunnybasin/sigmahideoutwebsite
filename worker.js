@@ -200,7 +200,8 @@ async function handleAuthCallback(request, env) {
 
   const sessionId = await createSession(env, {
     discordId: user.id,
-    username: user.global_name || user.username,
+    username: user.username,
+    displayName: user.global_name || user.username,
     avatar: user.avatar
       ? `https://cdn.discordapp.com/avatars/${user.id}/${user.avatar}.png`
       : null,
@@ -235,19 +236,44 @@ async function handleTeamSignoff(request, env) {
   if (request.method === 'POST') {
     let body;
     try { body = await request.json(); } catch { return jsonResponse({ error: 'Invalid request.' }, 400); }
-    const allowed = ['nda', 'policies', 'agreement'];
+    const allowed = ['overview', 'agreement', 'policies', 'nda'];
     if (!allowed.includes(body.section)) return jsonResponse({ error: 'Unknown section.' }, 400);
-    const typedSignature = typeof body.typedSignature === 'string' ? body.typedSignature.trim() : '';
-    if (typedSignature.length < 2 || typedSignature.length > 120) {
-      return jsonResponse({ error: 'Please provide a typed signature between 2 and 120 characters.' }, 400);
+
+    const printedUsername = typeof body.printedUsername === 'string' ? body.printedUsername.trim().replace(/^@/, '') : '';
+    const signatureImage = typeof body.signatureImage === 'string' ? body.signatureImage : '';
+    if (!printedUsername || printedUsername.length > 80) {
+      return jsonResponse({ error: 'Please enter your Discord username.' }, 400);
     }
+    if (printedUsername.toLowerCase() !== String(session.username || '').toLowerCase()) {
+      return jsonResponse({ error: 'The printed username must match your authenticated Discord username (@' + session.username + ').' }, 400);
+    }
+    // Drawn signatures are stored as small PNG data URLs. Keep the input
+    // bounded and verify the decoded PNG header before saving it to KV.
+    const signatureMatch = /^data:image\/png;base64,([A-Za-z0-9+/]+={0,2})$/.exec(signatureImage);
+    if (!signatureMatch || signatureImage.length > 350000) {
+      return jsonResponse({ error: 'Please draw your signature before signing.' }, 400);
+    }
+    let signatureBytes;
+    try {
+      const binary = atob(signatureMatch[1]);
+      signatureBytes = Uint8Array.from(binary, character => character.charCodeAt(0));
+    } catch {
+      return jsonResponse({ error: 'The drawn signature image is invalid.' }, 400);
+    }
+    const pngHeader = [137, 80, 78, 71, 13, 10, 26, 10];
+    if (signatureBytes.length < 33 || signatureBytes.length > 256 * 1024 ||
+        !pngHeader.every((byte, index) => signatureBytes[index] === byte)) {
+      return jsonResponse({ error: 'The drawn signature image is invalid.' }, 400);
+    }
+
     const raw = await env.GALLERY_KV.get(key);
     let record = {};
     try { record = raw ? JSON.parse(raw) : {}; } catch {}
     if (!record[body.section]) {
       record[body.section] = {
         accepted: true,
-        typedSignature,
+        printedUsername,
+        signatureImage,
         acceptedAt: new Date().toISOString(),
         discordId: session.discordId,
         usernameAtSigning: session.username
@@ -257,6 +283,39 @@ async function handleTeamSignoff(request, env) {
     return jsonResponse({ ok: true, signoffs: record });
   }
   return new Response('Method not allowed', { status: 405 });
+}
+
+async function handleTeamSignoffAdmin(request, env) {
+  const session = await getSession(request, env);
+  if (!session) return jsonResponse({ error: 'Discord login required.' }, 401);
+  if (!isAuthorizedAdmin(session.discordId, env)) {
+    return jsonResponse({ error: 'Not authorized.' }, 403);
+  }
+
+  const users = [];
+  let cursor;
+  do {
+    const page = await env.GALLERY_KV.list({ prefix: TEAM_SIGNOFF_PREFIX, cursor, limit: 1000 });
+    const values = await Promise.all(page.keys.map(async item => {
+      const raw = await env.GALLERY_KV.get(item.name);
+      if (!raw) return null;
+      try {
+        const signoffs = JSON.parse(raw);
+        const discordId = item.name.slice(TEAM_SIGNOFF_PREFIX.length);
+        const firstRecord = Object.values(signoffs).find(Boolean) || {};
+        return {
+          discordId,
+          username: firstRecord.usernameAtSigning || firstRecord.printedUsername || 'Unknown user',
+          signoffs
+        };
+      } catch { return null; }
+    }));
+    users.push(...values.filter(Boolean));
+    cursor = page.list_complete ? undefined : page.cursor;
+  } while (cursor);
+
+  users.sort((a, b) => String(a.username).localeCompare(String(b.username)));
+  return jsonResponse({ users });
 }
 
 async function handleAuthMe(request, env) {
@@ -1224,6 +1283,10 @@ export default {
 
       if (pathname === '/api/team-signoff' && (request.method === 'GET' || request.method === 'POST')) {
         return await handleTeamSignoff(request, env);
+      }
+
+      if (pathname === '/api/team-signoff/admin' && request.method === 'GET') {
+        return await handleTeamSignoffAdmin(request, env);
       }
 
       if (pathname === '/api/auth/login' && request.method === 'GET') {
