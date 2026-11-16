@@ -343,6 +343,22 @@ async function handleTeamSignoffAdmin(request, env) {
   return jsonResponse({ users });
 }
 
+async function handleTeamSignoffAdminPage(request, env) {
+  const session = await getSession(request, env);
+  if (!session) {
+    const returnTo = '/team-signoff-6f9d2c/admin/';
+    const loginUrl = '/api/auth/login?return=' + encodeURIComponent(returnTo);
+    return Response.redirect(new URL(loginUrl, request.url).toString(), 302);
+  }
+  if (!isAuthorizedAdmin(session.discordId, env)) {
+    return new Response(
+      '<!doctype html><html lang="en"><meta charset="utf-8"><meta name="viewport" content="width=device-width"><title>Access denied</title><body style="font:16px Arial,sans-serif;background:#0f0c0c;color:#ecd9d9;padding:3rem"><h1>Admin access required</h1><p>This page is restricted to configured Discord admins.</p><p><a style="color:#d77a7a" href="/team-signoff-6f9d2c/">Return to team sign-off</a></p></body></html>',
+      { status: 403, headers: { 'Content-Type': 'text/html; charset=utf-8', 'Cache-Control': 'no-store' } }
+    );
+  }
+  return env.ASSETS.fetch(request);
+}
+
 async function handleAuthMe(request, env) {
   const session = await getSession(request, env);
   if (!session) return jsonResponse({ loggedIn: false });
@@ -1312,6 +1328,10 @@ export default {
 
       if (pathname === '/api/team-signoff/admin' && (request.method === 'GET' || request.method === 'DELETE')) {
         return await handleTeamSignoffAdmin(request, env);
+      }
+
+      if ((pathname === '/team-signoff-6f9d2c/admin' || pathname === '/team-signoff-6f9d2c/admin/' || pathname === '/team-signoff-6f9d2c/admin/index.html') && request.method === 'GET') {
+        return await handleTeamSignoffAdminPage(request, env);
       }
 
       if (pathname === '/api/auth/login' && request.method === 'GET') {
