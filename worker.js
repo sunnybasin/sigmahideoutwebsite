@@ -53,6 +53,7 @@ const SESSION_PREFIX = 'session:';
 const SESSION_TTL_SECONDS = 60 * 60 * 24 * 30; // 30 days
 const SESSION_COOKIE = 'sh_session';
 const TEAM_SIGNOFF_PREFIX = 'team-signoff:';
+const TEAM_SIGNOFF_PROFILE_PREFIX = 'team-signoff-profile:';
 const OAUTH_STATE_PREFIX = 'oauth-state:';
 
 function extFromMime(mime) {
@@ -225,55 +226,105 @@ async function handleTeamSignoff(request, env) {
   const key = TEAM_SIGNOFF_PREFIX + session.discordId;
   if (request.method === 'GET') {
     const raw = await env.GALLERY_KV.get(key);
+    const profileRaw = await env.GALLERY_KV.get(TEAM_SIGNOFF_PROFILE_PREFIX + session.discordId);
     let record = {};
+    let profile = {};
     try { record = raw ? JSON.parse(raw) : {}; } catch {}
+    try { profile = profileRaw ? JSON.parse(profileRaw) : {}; } catch {}
     return jsonResponse({
       user: { id: session.discordId, username: session.username, avatar: session.avatar },
-      signoffs: record
+      signoffs: record,
+      organization: profile.organization || record.overview?.organization || ''
     });
   }
 
   if (request.method === 'POST') {
     let body;
     try { body = await request.json(); } catch { return jsonResponse({ error: 'Invalid request.' }, 400); }
-    const allowed = ['overview', 'agreement', 'policies', 'nda'];
+    const ordered = ['overview', 'agreement', 'policies', 'nda', 'completion'];
+    const allowed = ordered;
     if (!allowed.includes(body.section)) return jsonResponse({ error: 'Unknown section.' }, 400);
-
-    const printedUsername = typeof body.printedUsername === 'string' ? body.printedUsername.trim().replace(/^@/, '') : '';
-    const signatureImage = typeof body.signatureImage === 'string' ? body.signatureImage : '';
-    if (!printedUsername || printedUsername.length > 80) {
-      return jsonResponse({ error: 'Please enter your Discord username.' }, 400);
-    }
-    if (printedUsername.toLowerCase() !== String(session.username || '').toLowerCase()) {
-      return jsonResponse({ error: 'The printed username must match your authenticated Discord username (@' + session.username + ').' }, 400);
-    }
-    // Drawn signatures are stored as small PNG data URLs. Keep the input
-    // bounded and verify the decoded PNG header before saving it to KV.
-    const signatureMatch = /^data:image\/png;base64,([A-Za-z0-9+/]+={0,2})$/.exec(signatureImage);
-    if (!signatureMatch || signatureImage.length > 350000) {
-      return jsonResponse({ error: 'Please draw your signature before signing.' }, 400);
-    }
-    let signatureBytes;
-    try {
-      const binary = atob(signatureMatch[1]);
-      signatureBytes = Uint8Array.from(binary, character => character.charCodeAt(0));
-    } catch {
-      return jsonResponse({ error: 'The drawn signature image is invalid.' }, 400);
-    }
-    const pngHeader = [137, 80, 78, 71, 13, 10, 26, 10];
-    if (signatureBytes.length < 33 || signatureBytes.length > 256 * 1024 ||
-        !pngHeader.every((byte, index) => signatureBytes[index] === byte)) {
-      return jsonResponse({ error: 'The drawn signature image is invalid.' }, 400);
-    }
 
     const raw = await env.GALLERY_KV.get(key);
     let record = {};
     try { record = raw ? JSON.parse(raw) : {}; } catch {}
+    const currentIndex = ordered.indexOf(body.section);
+    if (!record[body.section] && ordered.slice(0, currentIndex).some(section => !record[section])) {
+      return jsonResponse({ error: 'Complete the previous section first.' }, 400);
+    }
+    if (record[body.section]) {
+      if (body.section === 'overview') {
+        const profileRaw = await env.GALLERY_KV.get(TEAM_SIGNOFF_PROFILE_PREFIX + session.discordId);
+        let existingOrganization = '';
+        try { existingOrganization = profileRaw ? JSON.parse(profileRaw).organization || '' : ''; } catch {}
+        if (!existingOrganization) {
+          const allowedOrganizations = ['Sigma Hideout Development Group', 'Aleph Corporation/Auzora Development', 'Ragdulls'];
+          if (!allowedOrganizations.includes(body.organization)) {
+            return jsonResponse({ error: 'Select which organization you are volunteering for.' }, 400);
+          }
+          await env.GALLERY_KV.put(TEAM_SIGNOFF_PROFILE_PREFIX + session.discordId, JSON.stringify({ organization: body.organization }));
+          record.overview.organization = body.organization;
+          await env.GALLERY_KV.put(key, JSON.stringify(record));
+        }
+      }
+      return jsonResponse({ ok: true, signoffs: record });
+    }
+
+    const requiresSignature = body.section === 'agreement' || body.section === 'completion';
+    const printedUsername = typeof body.printedUsername === 'string' ? body.printedUsername.trim().replace(/^@/, '') : '';
+    const signatureImage = typeof body.signatureImage === 'string' ? body.signatureImage : '';
+    let organization = '';
+    if (body.section === 'overview') {
+      const allowedOrganizations = ['Sigma Hideout Development Group', 'Aleph Corporation/Auzora Development', 'Ragdulls'];
+      organization = typeof body.organization === 'string' ? body.organization : '';
+      if (!allowedOrganizations.includes(organization)) {
+        return jsonResponse({ error: 'Select which organization you are volunteering for.' }, 400);
+      }
+    } else {
+      const profileRaw = await env.GALLERY_KV.get(TEAM_SIGNOFF_PROFILE_PREFIX + session.discordId);
+      try { organization = profileRaw ? JSON.parse(profileRaw).organization || '' : ''; } catch {}
+      if (!organization && record.overview?.organization) organization = record.overview.organization;
+      if (!organization) return jsonResponse({ error: 'Select your organization in Agreement Overview first.' }, 400);
+    }
+
+    if (requiresSignature) {
+      if (!printedUsername || printedUsername.length > 80) {
+        return jsonResponse({ error: 'Please enter your Discord username.' }, 400);
+      }
+      if (printedUsername.toLowerCase() !== String(session.username || '').toLowerCase()) {
+        return jsonResponse({ error: 'The printed username must match your authenticated Discord username (@' + session.username + ').' }, 400);
+      }
+      // Drawn signatures are stored as small PNG data URLs. Keep the input
+      // bounded and verify the decoded PNG header before saving it to KV.
+      const signatureMatch = /^data:image\/png;base64,([A-Za-z0-9+/]+={0,2})$/.exec(signatureImage);
+      if (!signatureMatch || signatureImage.length > 350000) {
+        return jsonResponse({ error: 'Please draw your signature before signing.' }, 400);
+      }
+      let signatureBytes;
+      try {
+        const binary = atob(signatureMatch[1]);
+        signatureBytes = Uint8Array.from(binary, character => character.charCodeAt(0));
+      } catch {
+        return jsonResponse({ error: 'The drawn signature image is invalid.' }, 400);
+      }
+      const pngHeader = [137, 80, 78, 71, 13, 10, 26, 10];
+      if (signatureBytes.length < 33 || signatureBytes.length > 256 * 1024 ||
+          !pngHeader.every((byte, index) => signatureBytes[index] === byte)) {
+        return jsonResponse({ error: 'The drawn signature image is invalid.' }, 400);
+      }
+    } else if (body.acknowledged !== true) {
+      return jsonResponse({ error: 'Check the acknowledgment box to continue.' }, 400);
+    }
+
+    if (body.section === 'overview') {
+      await env.GALLERY_KV.put(TEAM_SIGNOFF_PROFILE_PREFIX + session.discordId, JSON.stringify({ organization }));
+    }
     if (!record[body.section]) {
       record[body.section] = {
         accepted: true,
-        printedUsername,
-        signatureImage,
+        acknowledged: true,
+        ...(printedUsername ? { printedUsername, signatureImage } : {}),
+        organization,
         acceptedAt: new Date().toISOString(),
         discordId: session.discordId,
         usernameAtSigning: session.username
@@ -301,7 +352,7 @@ async function handleTeamSignoffAdmin(request, env) {
     }
     const key = TEAM_SIGNOFF_PREFIX + discordId;
     if (body.section !== undefined) {
-      const allowed = ['overview', 'agreement', 'policies', 'nda'];
+      const allowed = ['overview', 'agreement', 'policies', 'nda', 'completion'];
       if (!allowed.includes(body.section)) return jsonResponse({ error: 'Unknown section.' }, 400);
       const raw = await env.GALLERY_KV.get(key);
       if (raw) {
@@ -311,9 +362,13 @@ async function handleTeamSignoffAdmin(request, env) {
         if (Object.keys(record).length) await env.GALLERY_KV.put(key, JSON.stringify(record));
         else await env.GALLERY_KV.delete(key);
       }
+      if (body.section === 'overview') {
+        await env.GALLERY_KV.delete(TEAM_SIGNOFF_PROFILE_PREFIX + discordId);
+      }
       return jsonResponse({ ok: true, resetSection: body.section });
     }
     await env.GALLERY_KV.delete(key);
+    await env.GALLERY_KV.delete(TEAM_SIGNOFF_PROFILE_PREFIX + discordId);
     return jsonResponse({ ok: true, deleted: true });
   }
 
@@ -328,9 +383,13 @@ async function handleTeamSignoffAdmin(request, env) {
         const signoffs = JSON.parse(raw);
         const discordId = item.name.slice(TEAM_SIGNOFF_PREFIX.length);
         const firstRecord = Object.values(signoffs).find(Boolean) || {};
+        const profileRaw = await env.GALLERY_KV.get(TEAM_SIGNOFF_PROFILE_PREFIX + discordId);
+        let profile = {};
+        try { profile = profileRaw ? JSON.parse(profileRaw) : {}; } catch {}
         return {
           discordId,
           username: firstRecord.usernameAtSigning || firstRecord.printedUsername || 'Unknown user',
+          organization: profile.organization || signoffs.overview?.organization || firstRecord.organization || '',
           signoffs
         };
       } catch { return null; }
