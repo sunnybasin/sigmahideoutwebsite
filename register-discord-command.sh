@@ -79,6 +79,41 @@ cat > "$GUILD_JSON" << 'PAYLOAD'
     ]
   },
   {
+    "name": "dm",
+    "description": "Send a direct message to a Discord member - admins only",
+    "type": 1,
+    "options": [
+      {
+        "name": "user",
+        "description": "The member to send a DM to",
+        "type": 6,
+        "required": true
+      },
+      {
+        "name": "message",
+        "description": "The message to send (up to 2,000 characters)",
+        "type": 3,
+        "required": true,
+        "max_length": 2000
+      }
+    ]
+  },
+  {
+    "name": "dm_history",
+    "description": "View recent individual DM logs - admins only",
+    "type": 1,
+    "options": [
+      {
+        "name": "count",
+        "description": "How many logs to show (default 10, max 25)",
+        "type": 4,
+        "required": false,
+        "min_value": 1,
+        "max_value": 25
+      }
+    ]
+  },
+  {
     "name": "admin_help",
     "description": "DM every admin the how-to-use guide for admin commands - admins only",
     "type": 1
@@ -137,7 +172,7 @@ cat > "$GLOBAL_JSON" << 'PAYLOAD'
 ]
 PAYLOAD
 
-echo "Registering guild commands (create_event, edit_event, delete_event, admin_help, notify_admins, notify_history, talk)..."
+echo "Registering guild commands (create_event, edit_event, delete_event, dm, dm_history, admin_help, notify_admins, notify_history, talk)..."
 curl -s -X PUT \
   "https://discord.com/api/v10/applications/${DISCORD_APPLICATION_ID}/guilds/${DISCORD_GUILD_ID}/commands" \
   -H "Authorization: Bot ${DISCORD_BOT_TOKEN}" \
