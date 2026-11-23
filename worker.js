@@ -53,7 +53,6 @@ const SESSION_PREFIX = 'session:';
 const SESSION_TTL_SECONDS = 60 * 60 * 24 * 30; // 30 days
 const SESSION_COOKIE = 'sh_session';
 const TEAM_SIGNOFF_PREFIX = 'team-signoff:';
-const TEAM_SIGNOFF_PROFILE_PREFIX = 'team-signoff-profile:';
 const OAUTH_STATE_PREFIX = 'oauth-state:';
 
 function extFromMime(mime) {
@@ -226,105 +225,40 @@ async function handleTeamSignoff(request, env) {
   const key = TEAM_SIGNOFF_PREFIX + session.discordId;
   if (request.method === 'GET') {
     const raw = await env.GALLERY_KV.get(key);
-    const profileRaw = await env.GALLERY_KV.get(TEAM_SIGNOFF_PROFILE_PREFIX + session.discordId);
     let record = {};
-    let profile = {};
     try { record = raw ? JSON.parse(raw) : {}; } catch {}
-    try { profile = profileRaw ? JSON.parse(profileRaw) : {}; } catch {}
     return jsonResponse({
       user: { id: session.discordId, username: session.username, avatar: session.avatar },
-      signoffs: record,
-      organization: profile.organization || record.overview?.organization || ''
+      signoffs: record
     });
   }
 
   if (request.method === 'POST') {
     let body;
     try { body = await request.json(); } catch { return jsonResponse({ error: 'Invalid request.' }, 400); }
-    const ordered = ['overview', 'agreement', 'policies', 'nda', 'completion'];
-    const allowed = ordered;
+    const allowed = ['overview', 'agreement', 'policies', 'nda'];
     if (!allowed.includes(body.section)) return jsonResponse({ error: 'Unknown section.' }, 400);
+
+    const printedUsername = typeof body.printedUsername === 'string' ? body.printedUsername.trim().replace(/^@/, '') : '';
+    const typedSignature = typeof body.typedSignature === 'string' ? body.typedSignature.trim() : '';
+    if (!printedUsername || printedUsername.length > 80) {
+      return jsonResponse({ error: 'Please enter your Discord username.' }, 400);
+    }
+    if (printedUsername.toLowerCase() !== String(session.username || '').toLowerCase()) {
+      return jsonResponse({ error: 'The printed username must match your authenticated Discord username (@' + session.username + ').' }, 400);
+    }
+    if (typedSignature.length < 1 || typedSignature.length > 120) {
+      return jsonResponse({ error: 'Please type a signature between 1 and 120 characters.' }, 400);
+    }
 
     const raw = await env.GALLERY_KV.get(key);
     let record = {};
     try { record = raw ? JSON.parse(raw) : {}; } catch {}
-    const currentIndex = ordered.indexOf(body.section);
-    if (!record[body.section] && ordered.slice(0, currentIndex).some(section => !record[section])) {
-      return jsonResponse({ error: 'Complete the previous section first.' }, 400);
-    }
-    if (record[body.section]) {
-      if (body.section === 'overview') {
-        const profileRaw = await env.GALLERY_KV.get(TEAM_SIGNOFF_PROFILE_PREFIX + session.discordId);
-        let existingOrganization = '';
-        try { existingOrganization = profileRaw ? JSON.parse(profileRaw).organization || '' : ''; } catch {}
-        if (!existingOrganization) {
-          const allowedOrganizations = ['Sigma Hideout Development Group', 'Aleph Corporation/Auzora Development', 'Ragdulls'];
-          if (!allowedOrganizations.includes(body.organization)) {
-            return jsonResponse({ error: 'Select which organization you are volunteering for.' }, 400);
-          }
-          await env.GALLERY_KV.put(TEAM_SIGNOFF_PROFILE_PREFIX + session.discordId, JSON.stringify({ organization: body.organization }));
-          record.overview.organization = body.organization;
-          await env.GALLERY_KV.put(key, JSON.stringify(record));
-        }
-      }
-      return jsonResponse({ ok: true, signoffs: record });
-    }
-
-    const requiresSignature = body.section === 'agreement' || body.section === 'completion';
-    const printedUsername = typeof body.printedUsername === 'string' ? body.printedUsername.trim().replace(/^@/, '') : '';
-    const signatureImage = typeof body.signatureImage === 'string' ? body.signatureImage : '';
-    let organization = '';
-    if (body.section === 'overview') {
-      const allowedOrganizations = ['Sigma Hideout Development Group', 'Aleph Corporation/Auzora Development', 'Ragdulls'];
-      organization = typeof body.organization === 'string' ? body.organization : '';
-      if (!allowedOrganizations.includes(organization)) {
-        return jsonResponse({ error: 'Select which organization you are volunteering for.' }, 400);
-      }
-    } else {
-      const profileRaw = await env.GALLERY_KV.get(TEAM_SIGNOFF_PROFILE_PREFIX + session.discordId);
-      try { organization = profileRaw ? JSON.parse(profileRaw).organization || '' : ''; } catch {}
-      if (!organization && record.overview?.organization) organization = record.overview.organization;
-      if (!organization) return jsonResponse({ error: 'Select your organization in Agreement Overview first.' }, 400);
-    }
-
-    if (requiresSignature) {
-      if (!printedUsername || printedUsername.length > 80) {
-        return jsonResponse({ error: 'Please enter your Discord username.' }, 400);
-      }
-      if (printedUsername.toLowerCase() !== String(session.username || '').toLowerCase()) {
-        return jsonResponse({ error: 'The printed username must match your authenticated Discord username (@' + session.username + ').' }, 400);
-      }
-      // Drawn signatures are stored as small PNG data URLs. Keep the input
-      // bounded and verify the decoded PNG header before saving it to KV.
-      const signatureMatch = /^data:image\/png;base64,([A-Za-z0-9+/]+={0,2})$/.exec(signatureImage);
-      if (!signatureMatch || signatureImage.length > 350000) {
-        return jsonResponse({ error: 'Please draw your signature before signing.' }, 400);
-      }
-      let signatureBytes;
-      try {
-        const binary = atob(signatureMatch[1]);
-        signatureBytes = Uint8Array.from(binary, character => character.charCodeAt(0));
-      } catch {
-        return jsonResponse({ error: 'The drawn signature image is invalid.' }, 400);
-      }
-      const pngHeader = [137, 80, 78, 71, 13, 10, 26, 10];
-      if (signatureBytes.length < 33 || signatureBytes.length > 256 * 1024 ||
-          !pngHeader.every((byte, index) => signatureBytes[index] === byte)) {
-        return jsonResponse({ error: 'The drawn signature image is invalid.' }, 400);
-      }
-    } else if (body.acknowledged !== true) {
-      return jsonResponse({ error: 'Check the acknowledgment box to continue.' }, 400);
-    }
-
-    if (body.section === 'overview') {
-      await env.GALLERY_KV.put(TEAM_SIGNOFF_PROFILE_PREFIX + session.discordId, JSON.stringify({ organization }));
-    }
     if (!record[body.section]) {
       record[body.section] = {
         accepted: true,
-        acknowledged: true,
-        ...(printedUsername ? { printedUsername, signatureImage } : {}),
-        organization,
+        printedUsername,
+        typedSignature,
         acceptedAt: new Date().toISOString(),
         discordId: session.discordId,
         usernameAtSigning: session.username
@@ -343,35 +277,6 @@ async function handleTeamSignoffAdmin(request, env) {
     return jsonResponse({ error: 'Not authorized.' }, 403);
   }
 
-  if (request.method === 'DELETE') {
-    let body;
-    try { body = await request.json(); } catch { return jsonResponse({ error: 'Invalid request.' }, 400); }
-    const discordId = typeof body.discordId === 'string' ? body.discordId : '';
-    if (!/^\d{17,20}$/.test(discordId)) {
-      return jsonResponse({ error: 'A valid Discord account ID is required.' }, 400);
-    }
-    const key = TEAM_SIGNOFF_PREFIX + discordId;
-    if (body.section !== undefined) {
-      const allowed = ['overview', 'agreement', 'policies', 'nda', 'completion'];
-      if (!allowed.includes(body.section)) return jsonResponse({ error: 'Unknown section.' }, 400);
-      const raw = await env.GALLERY_KV.get(key);
-      if (raw) {
-        let record;
-        try { record = JSON.parse(raw); } catch { return jsonResponse({ error: 'The saved record is invalid.' }, 500); }
-        delete record[body.section];
-        if (Object.keys(record).length) await env.GALLERY_KV.put(key, JSON.stringify(record));
-        else await env.GALLERY_KV.delete(key);
-      }
-      if (body.section === 'overview') {
-        await env.GALLERY_KV.delete(TEAM_SIGNOFF_PROFILE_PREFIX + discordId);
-      }
-      return jsonResponse({ ok: true, resetSection: body.section });
-    }
-    await env.GALLERY_KV.delete(key);
-    await env.GALLERY_KV.delete(TEAM_SIGNOFF_PROFILE_PREFIX + discordId);
-    return jsonResponse({ ok: true, deleted: true });
-  }
-
   const users = [];
   let cursor;
   do {
@@ -383,13 +288,9 @@ async function handleTeamSignoffAdmin(request, env) {
         const signoffs = JSON.parse(raw);
         const discordId = item.name.slice(TEAM_SIGNOFF_PREFIX.length);
         const firstRecord = Object.values(signoffs).find(Boolean) || {};
-        const profileRaw = await env.GALLERY_KV.get(TEAM_SIGNOFF_PROFILE_PREFIX + discordId);
-        let profile = {};
-        try { profile = profileRaw ? JSON.parse(profileRaw) : {}; } catch {}
         return {
           discordId,
           username: firstRecord.usernameAtSigning || firstRecord.printedUsername || 'Unknown user',
-          organization: profile.organization || signoffs.overview?.organization || firstRecord.organization || '',
           signoffs
         };
       } catch { return null; }
@@ -400,22 +301,6 @@ async function handleTeamSignoffAdmin(request, env) {
 
   users.sort((a, b) => String(a.username).localeCompare(String(b.username)));
   return jsonResponse({ users });
-}
-
-async function handleTeamSignoffAdminPage(request, env) {
-  const session = await getSession(request, env);
-  if (!session) {
-    const returnTo = '/team-signoff-6f9d2c/admin/';
-    const loginUrl = '/api/auth/login?return=' + encodeURIComponent(returnTo);
-    return Response.redirect(new URL(loginUrl, request.url).toString(), 302);
-  }
-  if (!isAuthorizedAdmin(session.discordId, env)) {
-    return new Response(
-      '<!doctype html><html lang="en"><meta charset="utf-8"><meta name="viewport" content="width=device-width"><title>Access denied</title><body style="font:16px Arial,sans-serif;background:#0f0c0c;color:#ecd9d9;padding:3rem"><h1>Admin access required</h1><p>This page is restricted to configured Discord admins.</p><p><a style="color:#d77a7a" href="/team-signoff-6f9d2c/">Return to team sign-off</a></p></body></html>',
-      { status: 403, headers: { 'Content-Type': 'text/html; charset=utf-8', 'Cache-Control': 'no-store' } }
-    );
-  }
-  return env.ASSETS.fetch(request);
 }
 
 async function handleAuthMe(request, env) {
@@ -1045,6 +930,35 @@ async function dmAdmins(userIds, content, env) {
   return { succeeded, failed: results.length - succeeded, total: results.length, failures };
 }
 
+// ---- Individual admin-to-member DM history ----
+
+const DIRECT_DM_LOG_PREFIX = 'direct-dm-log:';
+const DIRECT_DM_LOG_TTL_SECONDS = 60 * 60 * 24 * 180; // retain 180 days
+
+async function logDirectMessage(entry, env) {
+  const key = `${DIRECT_DM_LOG_PREFIX}${Date.now()}-${crypto.randomUUID()}`;
+  await env.GALLERY_KV.put(key, JSON.stringify({ ...entry, sentAt: Date.now() }), {
+    expirationTtl: DIRECT_DM_LOG_TTL_SECONDS
+  });
+}
+
+async function listDirectMessageHistory(env, limit) {
+  const entries = [];
+  let cursor;
+  do {
+    const page = await env.GALLERY_KV.list({ prefix: DIRECT_DM_LOG_PREFIX, cursor });
+    cursor = page.cursor;
+    const values = await Promise.all(page.keys.map(key => env.GALLERY_KV.get(key.name)));
+    for (const value of values) {
+      if (value) entries.push(JSON.parse(value));
+    }
+    if (page.list_complete) break;
+  } while (cursor);
+
+  entries.sort((a, b) => b.sentAt - a.sentAt);
+  return entries.slice(0, limit);
+}
+
 const ADMIN_HELP_TEXT = `**Sigma Hideout — Admin Commands**
 
 You're on the admin list, which means you can:
@@ -1066,6 +980,8 @@ Start/End times are entered as \`YYYY-MM-DD HH:MM\` and always treated as **UTC*
 • \`/admin_help\` — resends this exact guide to every current admin (including you).
 • \`/notify_admins {message}\` — DMs every current admin with a custom update, e.g. if these commands change in the future.
 • \`/notify_history {count?}\` — shows the last several \`/notify_admins\` messages that were sent (default 10, max 25), so you can catch up on what you missed.
+• \`/dm {user} {message}\` — sends a direct message to one selected Discord member (admins only).
+• \`/dm_history {count?}\` — shows recent individual DM attempts, including recipient and delivery status (default 10, max 25).
 
 Access is checked live, every time — if you're ever removed from the admin list, all of this stops working immediately, no action needed on your end.`;
 
@@ -1196,6 +1112,76 @@ async function handleSlashCommand(interaction, env, ctx) {
     const channelId = channelOpt ? channelOpt.value : null;
     if (!channelId) return ephemeral('You need to pick a channel.');
     return buildTalkModal(channelId);
+  }
+
+  if (commandName === 'dm') {
+    if (!isAuthorizedAdmin(userId, env)) return ephemeral("You don't have permission to send DMs with this command.");
+
+    const options = interaction.data.options || [];
+    const userOpt = options.find(option => option.name === 'user');
+    const messageOpt = options.find(option => option.name === 'message');
+    const recipientId = userOpt && userOpt.value;
+    const message = messageOpt && typeof messageOpt.value === 'string' ? messageOpt.value.trim() : '';
+    if (!recipientId) return ephemeral('Select a Discord member to message.');
+    if (!message) return ephemeral('Message cannot be empty.');
+    if (message.length > 2000) return ephemeral('Discord DMs cannot exceed 2,000 characters.');
+
+    const resolvedUser = interaction.data.resolved && interaction.data.resolved.users
+      ? interaction.data.resolved.users[recipientId]
+      : null;
+    const recipientName = resolvedUser
+      ? (resolvedUser.global_name || resolvedUser.username || recipientId)
+      : recipientId;
+    const senderName = getDiscordUsername(interaction);
+    const applicationId = interaction.application_id;
+    const interactionToken = interaction.token;
+
+    ctx.waitUntil((async () => {
+      let status = 'sent';
+      let error = null;
+      try {
+        await sendDirectMessage(recipientId, message, env);
+      } catch (err) {
+        status = 'failed';
+        error = String(err && err.message ? err.message : err).slice(0, 500);
+      }
+
+      await logDirectMessage({
+        senderName,
+        senderId: userId,
+        recipientName,
+        recipientId,
+        message,
+        status,
+        error
+      }, env);
+
+      const result = status === 'sent'
+        ? `DM sent successfully to **${recipientName}** (\`${recipientId}\`).`
+        : `Could not DM **${recipientName}** (\`${recipientId}\`). Discord may have DMs disabled or may not allow the bot to contact this member.\n\nDetails: ${error || 'Unknown error'}`;
+      await editDeferredResponse(applicationId, interactionToken, result);
+    })());
+
+    return deferred();
+  }
+
+  if (commandName === 'dm_history') {
+    if (!isAuthorizedAdmin(userId, env)) return ephemeral("You don't have permission to view DM logs.");
+    const countOpt = (interaction.data.options || []).find(option => option.name === 'count');
+    const limit = countOpt ? Math.max(1, Math.min(25, parseInt(countOpt.value, 10) || 10)) : 10;
+    const history = await listDirectMessageHistory(env, limit);
+    if (!history.length) return ephemeral('No individual DM attempts have been logged yet.');
+
+    const lines = history.map(entry => {
+      const when = new Date(entry.sentAt).toISOString().slice(0, 16).replace('T', ' ');
+      const status = entry.status === 'sent' ? 'Sent' : 'Failed';
+      let line = `**${when} UTC** — ${status}\nFrom: ${entry.senderName} (\`${entry.senderId}\`)\nTo: ${entry.recipientName} (\`${entry.recipientId}\`)\nMessage: ${entry.message}`;
+      if (entry.error) line += `\nError: ${entry.error}`;
+      return line;
+    });
+    let content = `**Recent individual DMs (${history.length}):**\n\n` + lines.join('\n\n');
+    if (content.length > 1900) content = content.slice(0, 1890) + '\n\n…(truncated)';
+    return ephemeral(content);
   }
 
   if (commandName === 'admin_help') {
@@ -1385,12 +1371,8 @@ export default {
         return await handleTeamSignoff(request, env);
       }
 
-      if (pathname === '/api/team-signoff/admin' && (request.method === 'GET' || request.method === 'DELETE')) {
+      if (pathname === '/api/team-signoff/admin' && request.method === 'GET') {
         return await handleTeamSignoffAdmin(request, env);
-      }
-
-      if ((pathname === '/team-signoff-6f9d2c/admin' || pathname === '/team-signoff-6f9d2c/admin/' || pathname === '/team-signoff-6f9d2c/admin/index.html') && request.method === 'GET') {
-        return await handleTeamSignoffAdminPage(request, env);
       }
 
       if (pathname === '/api/auth/login' && request.method === 'GET') {
